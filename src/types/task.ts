@@ -22,9 +22,6 @@ export interface Task {
   status: TaskStatus;
   priority: TaskPriority;
   quadrant: EisenhowerQuadrant;
-  impact: number; // 1-10
-  effort: number; // 1-10
-  iceScore: number; // 1-100 calculated
   dueDate?: string;
   estimatedDuration?: string;
   notes?: string;
@@ -32,7 +29,6 @@ export interface Task {
   tags: string[];
   rationale?: string;
   nextImmediateStep?: string;
-  isDailyFocus?: boolean;
   createdAt: string;
   updatedAt: string;
   completedAt?: string;
@@ -45,3 +41,11 @@ export interface CategoryInfo {
   badgeBg?: string;
   description: string;
 }
+
+export interface AppBackupData {
+  version: number;
+  exportedAt: string;
+  tasks: Task[];
+  categories: CategoryInfo[];
+}
+

@@ -16,7 +16,6 @@ interface EisenhowerMatrixViewProps {
   tasks: Task[];
   categories: CategoryInfo[];
   onToggleComplete: (task: Task) => void;
-  onToggleDailyFocus: (task: Task) => void;
   onEdit: (task: Task) => void;
   onChangeQuadrant: (task: Task, quadrant: EisenhowerQuadrant) => void;
   onQuickAddTask: (quadrant: EisenhowerQuadrant) => void;
@@ -29,7 +28,6 @@ export const EisenhowerMatrixView: React.FC<EisenhowerMatrixViewProps> = ({
   tasks,
   categories,
   onToggleComplete,
-  onToggleDailyFocus,
   onEdit,
   onChangeQuadrant,
   onQuickAddTask,
@@ -259,7 +257,6 @@ export const EisenhowerMatrixView: React.FC<EisenhowerMatrixViewProps> = ({
             tasks={getQuadrantTasks('q1_do')}
             icon={<Flame className="w-5 h-5 text-rose-600 dark:text-rose-400" />}
             onToggleComplete={onToggleComplete}
-            onToggleDailyFocus={onToggleDailyFocus}
             onEdit={onEdit}
             onChangeQuadrant={onChangeQuadrant}
             onQuickAdd={() => onQuickAddTask('q1_do')}
@@ -279,7 +276,6 @@ export const EisenhowerMatrixView: React.FC<EisenhowerMatrixViewProps> = ({
             tasks={getQuadrantTasks('q2_schedule')}
             icon={<Target className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />}
             onToggleComplete={onToggleComplete}
-            onToggleDailyFocus={onToggleDailyFocus}
             onEdit={onEdit}
             onChangeQuadrant={onChangeQuadrant}
             onQuickAdd={() => onQuickAddTask('q2_schedule')}
@@ -299,7 +295,6 @@ export const EisenhowerMatrixView: React.FC<EisenhowerMatrixViewProps> = ({
             tasks={getQuadrantTasks('q3_delegate')}
             icon={<Zap className="w-5 h-5 text-amber-600 dark:text-amber-400" />}
             onToggleComplete={onToggleComplete}
-            onToggleDailyFocus={onToggleDailyFocus}
             onEdit={onEdit}
             onChangeQuadrant={onChangeQuadrant}
             onQuickAdd={() => onQuickAddTask('q3_delegate')}
@@ -319,7 +314,6 @@ export const EisenhowerMatrixView: React.FC<EisenhowerMatrixViewProps> = ({
             tasks={getQuadrantTasks('q4_eliminate')}
             icon={<Trash2 className="w-5 h-5 text-slate-500 dark:text-slate-400" />}
             onToggleComplete={onToggleComplete}
-            onToggleDailyFocus={onToggleDailyFocus}
             onEdit={onEdit}
             onChangeQuadrant={onChangeQuadrant}
             onQuickAdd={() => onQuickAddTask('q4_eliminate')}
@@ -343,7 +337,6 @@ interface QuadrantCardProps {
   tasks: Task[];
   icon: React.ReactNode;
   onToggleComplete: (task: Task) => void;
-  onToggleDailyFocus: (task: Task) => void;
   onEdit: (task: Task) => void;
   onChangeQuadrant: (task: Task, quadrant: EisenhowerQuadrant) => void;
   onQuickAdd: () => void;
@@ -358,7 +351,6 @@ const QuadrantCard: React.FC<QuadrantCardProps> = ({
   tasks,
   icon,
   onToggleComplete,
-  onToggleDailyFocus,
   onEdit,
   onChangeQuadrant,
   onQuickAdd,
@@ -418,7 +410,6 @@ const QuadrantCard: React.FC<QuadrantCardProps> = ({
               key={task.id}
               task={task}
               onToggleComplete={onToggleComplete}
-              onToggleDailyFocus={onToggleDailyFocus}
               onEdit={onEdit}
               onChangeQuadrant={onChangeQuadrant}
               showQuadrantSelector={true}

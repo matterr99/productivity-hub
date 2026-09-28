@@ -3,8 +3,8 @@ import {
   CheckCircle2, 
   Circle, 
   Clock, 
-  ListChecks, 
-  Star 
+  ListChecks,
+  Calendar
 } from 'lucide-react';
 import { Task, EisenhowerQuadrant, Language } from '../types/task';
 import { PRIORITY_CONFIG } from '../utils/priorityCalculations';
@@ -13,7 +13,6 @@ import { getTranslation } from '../i18n/translations';
 interface TaskCardProps {
   task: Task;
   onToggleComplete: (task: Task) => void;
-  onToggleDailyFocus: (task: Task) => void;
   onEdit: (task: Task) => void;
   onChangeQuadrant?: (task: Task, quadrant: EisenhowerQuadrant) => void;
   showQuadrantSelector?: boolean;
@@ -23,7 +22,6 @@ interface TaskCardProps {
 export const TaskCard: React.FC<TaskCardProps> = ({
   task,
   onToggleComplete,
-  onToggleDailyFocus,
   onEdit,
   onChangeQuadrant,
   showQuadrantSelector = false,
@@ -40,19 +38,17 @@ export const TaskCard: React.FC<TaskCardProps> = ({
       className={`group relative bg-white dark:bg-slate-800/90 rounded-xl border transition-all duration-150 shadow-xs hover:shadow-md ${
         isDone
           ? 'bg-slate-50/70 dark:bg-slate-900/40 border-slate-200 dark:border-slate-800 opacity-65'
-          : task.isDailyFocus
-          ? 'border-indigo-300 dark:border-indigo-500/70 ring-1 ring-indigo-200 dark:ring-indigo-900/50'
           : 'border-slate-200/90 dark:border-slate-700/80 hover:border-slate-300 dark:hover:border-slate-600'
       }`}
     >
       <div className="p-3.5">
         
-        {/* Top bar of card: Category and Quick Actions */}
+        {/* Top bar of card: Category and Priority Badge */}
         <div className="flex items-center justify-between gap-2 mb-2 text-xs">
           <div className="flex items-center gap-1.5 text-slate-500 dark:text-slate-400 font-medium">
             <span className="font-semibold text-slate-700 dark:text-slate-300 tracking-tight">{task.category}</span>
             <span aria-hidden="true" className="text-slate-300 dark:text-slate-600">·</span>
-            <span className={`font-medium ${
+            <span className={`font-semibold ${
               task.priority === 'p1_critical' ? 'text-rose-600 dark:text-rose-400' :
               task.priority === 'p2_high' ? 'text-amber-600 dark:text-amber-400' :
               task.priority === 'p3_medium' ? 'text-blue-600 dark:text-blue-400' : 'text-slate-500 dark:text-slate-400'
@@ -61,23 +57,12 @@ export const TaskCard: React.FC<TaskCardProps> = ({
             </span>
           </div>
 
-          <div className="flex items-center gap-1">
-            {/* Daily Focus Star button */}
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onToggleDailyFocus(task);
-              }}
-              title={task.isDailyFocus ? 'Remove from Daily Focus' : 'Star as Today\'s Focus'}
-              className={`p-1 rounded-md transition-colors cursor-pointer ${
-                task.isDailyFocus
-                  ? 'text-amber-500 hover:text-amber-600'
-                  : 'text-slate-300 dark:text-slate-600 hover:text-amber-400 opacity-100 sm:opacity-0 group-hover:opacity-100'
-              }`}
-            >
-              <Star className={`w-3.5 h-3.5 ${task.isDailyFocus ? 'fill-amber-400' : ''}`} />
-            </button>
-          </div>
+          {task.dueDate && (
+            <span className="inline-flex items-center gap-1 text-[11px] text-slate-500 dark:text-slate-400 font-mono">
+              <Calendar className="w-3 h-3 text-slate-400" />
+              <span>{task.dueDate}</span>
+            </span>
+          )}
         </div>
 
         {/* Task Title & Checkbox */}
@@ -122,9 +107,9 @@ export const TaskCard: React.FC<TaskCardProps> = ({
           </div>
         </div>
 
-        {/* Footer info: Unboxed clean metadata */}
+        {/* Footer info: Duration, Subtasks, Quadrant Shift */}
         <div className="mt-3 pt-2.5 border-t border-slate-100 dark:border-slate-700/60 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
-          <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex items-center gap-2.5 flex-wrap">
             {totalSubtasks > 0 && (
               <span className="inline-flex items-center gap-1 font-mono tabular-nums text-slate-600 dark:text-slate-300">
                 <ListChecks className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500" />
@@ -136,12 +121,6 @@ export const TaskCard: React.FC<TaskCardProps> = ({
               <span className="inline-flex items-center gap-1 text-slate-500 dark:text-slate-400">
                 <Clock className="w-3 h-3 text-slate-400 dark:text-slate-500" />
                 <span>{task.estimatedDuration}</span>
-              </span>
-            )}
-
-            {task.iceScore > 0 && (
-              <span className="font-mono text-slate-500 dark:text-slate-400 tabular-nums">
-                ICE {task.iceScore}
               </span>
             )}
           </div>
@@ -166,3 +145,4 @@ export const TaskCard: React.FC<TaskCardProps> = ({
     </div>
   );
 };
+

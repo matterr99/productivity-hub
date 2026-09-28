@@ -6,20 +6,21 @@ import {
   Circle, 
   Trash2, 
   Plus, 
-  Star, 
   CheckSquare, 
   Square, 
-  Edit2 
+  Edit2,
+  Calendar,
+  Clock,
+  LayoutList,
+  Table as TableIcon
 } from 'lucide-react';
 import { Task, CategoryInfo, TaskStatus, TaskPriority, EisenhowerQuadrant, Language } from '../types/task';
-import { PRIORITY_CONFIG, calculateIceScore } from '../utils/priorityCalculations';
 import { getTranslation } from '../i18n/translations';
 
 interface BacklogTableViewProps {
   tasks: Task[];
   categories: CategoryInfo[];
   onToggleComplete: (task: Task) => void;
-  onToggleDailyFocus: (task: Task) => void;
   onUpdateTask: (task: Task) => void;
   onDeleteTask: (taskId: string) => void;
   onBatchUpdateStatus: (taskIds: string[], status: TaskStatus) => void;
@@ -30,14 +31,13 @@ interface BacklogTableViewProps {
   lang: Language;
 }
 
-type SortField = 'title' | 'category' | 'status' | 'priority' | 'quadrant' | 'iceScore' | 'impact' | 'effort';
+type SortField = 'title' | 'category' | 'status' | 'priority' | 'quadrant' | 'dueDate';
 type SortOrder = 'asc' | 'desc';
 
 export const BacklogTableView: React.FC<BacklogTableViewProps> = ({
   tasks,
   categories,
   onToggleComplete,
-  onToggleDailyFocus,
   onUpdateTask,
   onDeleteTask,
   onBatchUpdateStatus,
@@ -53,12 +53,13 @@ export const BacklogTableView: React.FC<BacklogTableViewProps> = ({
   const [selectedQuadrant, setSelectedQuadrant] = useState('ALL');
   const [selectedStatus, setSelectedStatus] = useState('ALL');
 
-  const [sortField, setSortField] = useState<SortField>('iceScore');
+  const [sortField, setSortField] = useState<SortField>('priority');
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
 
   const [selectedTaskIds, setSelectedTaskIds] = useState<string[]>([]);
   const [newTitleInput, setNewTitleInput] = useState('');
   const [newCategoryInput, setNewCategoryInput] = useState(categories[0]?.id || 'GENERAL');
+  const [mobileLayoutMode, setMobileLayoutMode] = useState<'table' | 'cards'>('cards');
 
   const t = getTranslation(lang).table;
   const tPriorities = getTranslation(lang).priorities;
@@ -85,12 +86,14 @@ export const BacklogTableView: React.FC<BacklogTableViewProps> = ({
   // Sort tasks
   const sortedTasks = [...filteredTasks].sort((a, b) => {
     let factor = sortOrder === 'asc' ? 1 : -1;
-    if (sortField === 'iceScore') return (a.iceScore - b.iceScore) * factor;
-    if (sortField === 'impact') return (a.impact - b.impact) * factor;
-    if (sortField === 'effort') return (a.effort - b.effort) * factor;
     if (sortField === 'title') return a.title.localeCompare(b.title) * factor;
     if (sortField === 'category') return a.category.localeCompare(b.category) * factor;
     if (sortField === 'status') return a.status.localeCompare(b.status) * factor;
+    if (sortField === 'dueDate') {
+      const dateA = a.dueDate || '9999-99-99';
+      const dateB = b.dueDate || '9999-99-99';
+      return dateA.localeCompare(dateB) * factor;
+    }
     if (sortField === 'priority') {
       const orderMap: Record<TaskPriority, number> = {
         p1_critical: 4,
@@ -117,7 +120,7 @@ export const BacklogTableView: React.FC<BacklogTableViewProps> = ({
       setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
     } else {
       setSortField(field);
-      setSortOrder(field === 'iceScore' || field === 'impact' ? 'desc' : 'asc');
+      setSortOrder(field === 'priority' || field === 'quadrant' ? 'desc' : 'asc');
     }
   };
 
@@ -138,15 +141,15 @@ export const BacklogTableView: React.FC<BacklogTableViewProps> = ({
   const handleQuickAddRow = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newTitleInput.trim()) return;
+
     onAddNewTask({
       title: newTitleInput.trim(),
       category: newCategoryInput,
+      status: 'todo',
       priority: 'p2_high',
       quadrant: 'q2_schedule',
-      status: 'todo',
-      impact: 7,
-      effort: 3,
     });
+
     setNewTitleInput('');
   };
 
@@ -154,10 +157,9 @@ export const BacklogTableView: React.FC<BacklogTableViewProps> = ({
     <div className="space-y-4">
       
       {/* Search & Multi-Filter Control Panel */}
-      <div className="bg-white dark:bg-slate-900 rounded-2xl p-4 border border-slate-200 dark:border-slate-800 shadow-2xs space-y-3">
-        <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3">
+      <div className="bg-white dark:bg-slate-900 rounded-2xl p-3.5 sm:p-4 border border-slate-200 dark:border-slate-800 shadow-2xs space-y-3">
+        <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
           
-          {/* Search */}
           <div className="relative flex-1">
             <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
@@ -165,20 +167,18 @@ export const BacklogTableView: React.FC<BacklogTableViewProps> = ({
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder={t.searchPlaceholder}
-              className="w-full pl-9 pr-3 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-200 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:bg-white dark:focus:bg-slate-800"
+              className="w-full pl-9 pr-3 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-indigo-500"
             />
           </div>
 
-          {/* Filter Dropdowns */}
-          <div className="flex flex-wrap items-center gap-2">
-            
+          <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
             {/* Category Filter */}
             <select
               value={selectedCategory}
               onChange={(e) => setSelectedCategory(e.target.value)}
-              className="px-2.5 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-700 dark:text-slate-300 focus:outline-none cursor-pointer"
+              className="px-2 sm:px-2.5 py-1.5 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-700 dark:text-slate-300 focus:outline-none cursor-pointer"
             >
-              <option value="ALL">{t.allCategories}</option>
+              <option value="ALL">{t.allCategories} ({tasks.length})</option>
               {categories.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.name}
@@ -190,7 +190,7 @@ export const BacklogTableView: React.FC<BacklogTableViewProps> = ({
             <select
               value={selectedPriority}
               onChange={(e) => setSelectedPriority(e.target.value)}
-              className="px-2.5 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-700 dark:text-slate-300 focus:outline-none cursor-pointer"
+              className="px-2 sm:px-2.5 py-1.5 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-700 dark:text-slate-300 focus:outline-none cursor-pointer"
             >
               <option value="ALL">{t.allPriorities}</option>
               <option value="p1_critical">{tPriorities.p1_critical}</option>
@@ -203,7 +203,7 @@ export const BacklogTableView: React.FC<BacklogTableViewProps> = ({
             <select
               value={selectedQuadrant}
               onChange={(e) => setSelectedQuadrant(e.target.value)}
-              className="px-2.5 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-700 dark:text-slate-300 focus:outline-none cursor-pointer"
+              className="px-2 sm:px-2.5 py-1.5 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-700 dark:text-slate-300 focus:outline-none cursor-pointer"
             >
               <option value="ALL">{t.allQuadrants}</option>
               <option value="q1_do">{tQuadrants.q1_do}</option>
@@ -216,26 +216,54 @@ export const BacklogTableView: React.FC<BacklogTableViewProps> = ({
             <select
               value={selectedStatus}
               onChange={(e) => setSelectedStatus(e.target.value)}
-              className="px-2.5 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-700 dark:text-slate-300 focus:outline-none cursor-pointer"
+              className="px-2 sm:px-2.5 py-1.5 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-700 dark:text-slate-300 focus:outline-none cursor-pointer"
             >
               <option value="ALL">{t.allStatuses}</option>
-              <option value="todo">{lang === 'es' ? 'Por Hacer' : 'To Do'}</option>
-              <option value="in_progress">{lang === 'es' ? 'En Progreso' : 'In Progress'}</option>
-              <option value="blocked">{lang === 'es' ? 'Bloqueado' : 'Blocked'}</option>
-              <option value="done">{lang === 'es' ? 'Completada' : 'Done'}</option>
+              <option value="todo">To Do</option>
+              <option value="in_progress">In Progress</option>
+              <option value="blocked">Blocked</option>
+              <option value="done">Completed</option>
             </select>
+
+            {/* Mobile View Toggle (Card vs Table on small screens) */}
+            <div className="md:hidden flex items-center bg-slate-100 dark:bg-slate-800 rounded-lg p-0.5 border border-slate-200 dark:border-slate-700">
+              <button
+                type="button"
+                onClick={() => setMobileLayoutMode('cards')}
+                className={`p-1 rounded cursor-pointer ${
+                  mobileLayoutMode === 'cards' 
+                    ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-2xs' 
+                    : 'text-slate-400'
+                }`}
+                title="Cards view"
+              >
+                <LayoutList className="w-3.5 h-3.5" />
+              </button>
+              <button
+                type="button"
+                onClick={() => setMobileLayoutMode('table')}
+                className={`p-1 rounded cursor-pointer ${
+                  mobileLayoutMode === 'table' 
+                    ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-2xs' 
+                    : 'text-slate-400'
+                }`}
+                title="Table view"
+              >
+                <TableIcon className="w-3.5 h-3.5" />
+              </button>
+            </div>
           </div>
 
         </div>
 
-        {/* Quick Add Row Input */}
+        {/* Quick Add Row in Table */}
         <form onSubmit={handleQuickAddRow} className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
           <input
             type="text"
             value={newTitleInput}
             onChange={(e) => setNewTitleInput(e.target.value)}
             placeholder={t.quickAddPlaceholder}
-            className="flex-1 px-3 py-1.5 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-200 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:bg-white dark:focus:bg-slate-800"
+            className="flex-1 px-3 py-1.5 text-xs bg-slate-50 dark:bg-slate-800/90 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-indigo-500"
           />
           <select
             value={newCategoryInput}
@@ -264,7 +292,7 @@ export const BacklogTableView: React.FC<BacklogTableViewProps> = ({
           <div className="flex items-center gap-2 text-xs font-semibold">
             <CheckSquare className="w-4 h-4 text-indigo-300" />
             <span>
-              {selectedTaskIds.length} {t.tasksSelected.replace('{s}', selectedTaskIds.length > 1 ? (lang === 'es' ? 's' : 's') : '')}
+              {selectedTaskIds.length} {t.tasksSelected.replace('{s}', selectedTaskIds.length > 1 ? 's' : '')}
             </span>
           </div>
 
@@ -309,10 +337,89 @@ export const BacklogTableView: React.FC<BacklogTableViewProps> = ({
         </div>
       )}
 
-      {/* Spreadsheet Power Table */}
-      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-2xs">
+      {/* Mobile Cards View (Optimized for Small Phone Screens) */}
+      <div className={`${mobileLayoutMode === 'cards' ? 'block md:hidden' : 'hidden'} space-y-2.5`}>
+        {sortedTasks.length === 0 ? (
+          <div className="p-8 text-center text-xs text-slate-400 dark:text-slate-500 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800">
+            {t.noTasksFound}
+          </div>
+        ) : (
+          sortedTasks.map((taskItem) => {
+            const isDone = taskItem.status === 'done';
+            return (
+              <div
+                key={taskItem.id}
+                className={`p-3.5 bg-white dark:bg-slate-900 rounded-xl border transition-all ${
+                  isDone 
+                    ? 'border-slate-200 dark:border-slate-800 opacity-65 bg-slate-50/40 dark:bg-slate-900/40' 
+                    : 'border-slate-200 dark:border-slate-800 shadow-2xs'
+                }`}
+              >
+                <div className="flex items-start justify-between gap-2.5">
+                  <div className="flex items-start gap-2.5 flex-1 min-w-0">
+                    <button
+                      onClick={() => onToggleComplete(taskItem)}
+                      className="mt-0.5 text-slate-300 dark:text-slate-600 hover:text-emerald-600 dark:hover:text-emerald-400 shrink-0 cursor-pointer"
+                    >
+                      {isDone ? (
+                        <CheckCircle2 className="w-5 h-5 text-emerald-600 dark:text-emerald-400 fill-emerald-100 dark:fill-emerald-950/40" />
+                      ) : (
+                        <Circle className="w-5 h-5 text-slate-300 dark:text-slate-600" />
+                      )}
+                    </button>
+                    <div className="flex-1 min-w-0" onClick={() => onEdit(taskItem)}>
+                      <h4 className={`text-sm font-semibold tracking-tight ${isDone ? 'line-through text-slate-400 dark:text-slate-500' : 'text-slate-900 dark:text-slate-100'}`}>
+                        {taskItem.title}
+                      </h4>
+                      {taskItem.nextImmediateStep && !isDone && (
+                        <p className="text-xs text-indigo-700 dark:text-indigo-300 font-normal mt-1 line-clamp-1">
+                          👉 {taskItem.nextImmediateStep}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={() => onEdit(taskItem)}
+                    className="p-1 text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 cursor-pointer"
+                  >
+                    <Edit2 className="w-4 h-4" />
+                  </button>
+                </div>
+
+                <div className="mt-2.5 pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 gap-2 flex-wrap">
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className="font-semibold text-slate-700 dark:text-slate-300">
+                      {taskItem.category}
+                    </span>
+                    <span>·</span>
+                    <span className={`font-semibold ${
+                      taskItem.priority === 'p1_critical' ? 'text-rose-600 dark:text-rose-400' :
+                      taskItem.priority === 'p2_high' ? 'text-amber-600 dark:text-amber-400' :
+                      taskItem.priority === 'p3_medium' ? 'text-blue-600 dark:text-blue-400' : 'text-slate-500'
+                    }`}>
+                      {tPriorities[taskItem.priority]}
+                    </span>
+                    <span>·</span>
+                    <span>{tQuadrants[taskItem.quadrant]}</span>
+                  </div>
+
+                  {taskItem.dueDate && (
+                    <span className="font-mono text-[11px] text-slate-500 dark:text-slate-400">
+                      📅 {taskItem.dueDate}
+                    </span>
+                  )}
+                </div>
+              </div>
+            );
+          })
+        )}
+      </div>
+
+      {/* Spreadsheet Power Table (Desktop & Tablets, or when Table view selected on mobile) */}
+      <div className={`${mobileLayoutMode === 'table' ? 'block' : 'hidden md:block'} bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-2xs`}>
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs border-collapse min-w-[700px]">
+          <table className="w-full text-left text-xs border-collapse min-w-[720px]">
             
             {/* Table Header */}
             <thead>
@@ -358,23 +465,16 @@ export const BacklogTableView: React.FC<BacklogTableViewProps> = ({
                   </div>
                 </th>
 
-                <th className="p-3 cursor-pointer hover:bg-slate-100/80 dark:hover:bg-slate-700/50 transition-colors w-24 text-right" onClick={() => handleSort('iceScore')}>
-                  <div className="flex items-center justify-end gap-1.5">
-                    <span>{t.iceScoreCol}</span>
+                <th className="p-3 cursor-pointer hover:bg-slate-100/80 dark:hover:bg-slate-700/50 transition-colors w-28" onClick={() => handleSort('status')}>
+                  <div className="flex items-center gap-1.5">
+                    <span>Status</span>
                     <ArrowUpDown className="w-3 h-3 text-slate-400" />
                   </div>
                 </th>
 
-                <th className="p-3 cursor-pointer hover:bg-slate-100/80 dark:hover:bg-slate-700/50 transition-colors w-20 text-center" onClick={() => handleSort('impact')}>
-                  <div className="flex items-center justify-center gap-1.5">
-                    <span>{t.impactCol}</span>
-                    <ArrowUpDown className="w-3 h-3 text-slate-400" />
-                  </div>
-                </th>
-
-                <th className="p-3 cursor-pointer hover:bg-slate-100/80 dark:hover:bg-slate-700/50 transition-colors w-20 text-center" onClick={() => handleSort('effort')}>
-                  <div className="flex items-center justify-center gap-1.5">
-                    <span>{t.effortCol}</span>
+                <th className="p-3 cursor-pointer hover:bg-slate-100/80 dark:hover:bg-slate-700/50 transition-colors w-28" onClick={() => handleSort('dueDate')}>
+                  <div className="flex items-center gap-1.5">
+                    <span>Due Date</span>
                     <ArrowUpDown className="w-3 h-3 text-slate-400" />
                   </div>
                 </th>
@@ -387,7 +487,7 @@ export const BacklogTableView: React.FC<BacklogTableViewProps> = ({
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
               {sortedTasks.length === 0 ? (
                 <tr>
-                  <td colSpan={10} className="text-center py-12 text-slate-400 dark:text-slate-500">
+                  <td colSpan={9} className="text-center py-12 text-slate-400 dark:text-slate-500">
                     {t.noTasksFound}
                   </td>
                 </tr>
@@ -434,15 +534,6 @@ export const BacklogTableView: React.FC<BacklogTableViewProps> = ({
                       {/* Title & Notes */}
                       <td className="p-3 font-medium">
                         <div className="flex items-center gap-2">
-                          <button
-                            onClick={() => onToggleDailyFocus(taskItem)}
-                            title="Star as Today's Focus"
-                            className={`transition-colors cursor-pointer ${
-                              taskItem.isDailyFocus ? 'text-amber-500' : 'text-slate-300 dark:text-slate-600 hover:text-amber-400'
-                            }`}
-                          >
-                            <Star className={`w-3.5 h-3.5 ${taskItem.isDailyFocus ? 'fill-amber-400' : ''}`} />
-                          </button>
                           <span
                             onClick={() => onEdit(taskItem)}
                             className={`cursor-pointer hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors ${
@@ -482,8 +573,7 @@ export const BacklogTableView: React.FC<BacklogTableViewProps> = ({
                           value={taskItem.priority}
                           onChange={(e) => {
                             const newP = e.target.value as TaskPriority;
-                            const newIce = calculateIceScore(taskItem.impact, taskItem.effort, newP);
-                            onUpdateTask({ ...taskItem, priority: newP, iceScore: newIce });
+                            onUpdateTask({ ...taskItem, priority: newP });
                           }}
                           className={`text-[11px] font-semibold bg-transparent border-0 rounded px-1.5 py-1 cursor-pointer ${
                             taskItem.priority === 'p1_critical' ? 'text-rose-700 dark:text-rose-400' :
@@ -514,41 +604,41 @@ export const BacklogTableView: React.FC<BacklogTableViewProps> = ({
                         </select>
                       </td>
 
-                      {/* ICE Score */}
-                      <td className="p-3 text-right font-mono font-bold text-slate-900 dark:text-slate-100 tabular-nums">
-                        {taskItem.iceScore}
+                      {/* Status */}
+                      <td className="p-3">
+                        <select
+                          value={taskItem.status}
+                          onChange={(e) =>
+                            onUpdateTask({ 
+                              ...taskItem, 
+                              status: e.target.value as TaskStatus,
+                              completedAt: e.target.value === 'done' ? (taskItem.completedAt || new Date().toISOString()) : undefined
+                            })
+                          }
+                          className="text-[11px] font-medium text-slate-700 dark:text-slate-300 bg-transparent border-0 hover:bg-slate-100 dark:hover:bg-slate-800 rounded px-1.5 py-1 cursor-pointer"
+                        >
+                          <option value="todo" className="dark:bg-slate-800 dark:text-slate-200">To Do</option>
+                          <option value="in_progress" className="dark:bg-slate-800 dark:text-slate-200">In Progress</option>
+                          <option value="blocked" className="dark:bg-slate-800 dark:text-slate-200">Blocked</option>
+                          <option value="done" className="dark:bg-slate-800 dark:text-slate-200">Done</option>
+                        </select>
                       </td>
 
-                      {/* Impact (1-10) */}
-                      <td className="p-3 text-center">
-                        <input
-                          type="number"
-                          min={1}
-                          max={10}
-                          value={taskItem.impact}
-                          onChange={(e) => {
-                            const val = Math.min(10, Math.max(1, parseInt(e.target.value) || 1));
-                            const newIce = calculateIceScore(val, taskItem.effort, taskItem.priority);
-                            onUpdateTask({ ...taskItem, impact: val, iceScore: newIce });
-                          }}
-                          className="w-10 text-center font-mono bg-slate-50 dark:bg-slate-800 hover:bg-white dark:hover:bg-slate-700 border border-transparent hover:border-slate-200 dark:hover:border-slate-600 rounded py-0.5 text-slate-800 dark:text-slate-200"
-                        />
-                      </td>
-
-                      {/* Effort (1-10) */}
-                      <td className="p-3 text-center">
-                        <input
-                          type="number"
-                          min={1}
-                          max={10}
-                          value={taskItem.effort}
-                          onChange={(e) => {
-                            const val = Math.min(10, Math.max(1, parseInt(e.target.value) || 1));
-                            const newIce = calculateIceScore(taskItem.impact, val, taskItem.priority);
-                            onUpdateTask({ ...taskItem, effort: val, iceScore: newIce });
-                          }}
-                          className="w-10 text-center font-mono bg-slate-50 dark:bg-slate-800 hover:bg-white dark:hover:bg-slate-700 border border-transparent hover:border-slate-200 dark:hover:border-slate-600 rounded py-0.5 text-slate-800 dark:text-slate-200"
-                        />
+                      {/* Due Date */}
+                      <td className="p-3 font-mono text-[11px] text-slate-500 dark:text-slate-400">
+                        {taskItem.dueDate ? (
+                          <span className="inline-flex items-center gap-1">
+                            <Calendar className="w-3 h-3 text-slate-400" />
+                            <span>{taskItem.dueDate}</span>
+                          </span>
+                        ) : taskItem.estimatedDuration ? (
+                          <span className="inline-flex items-center gap-1 text-slate-400">
+                            <Clock className="w-3 h-3" />
+                            <span>{taskItem.estimatedDuration}</span>
+                          </span>
+                        ) : (
+                          <span className="text-slate-300 dark:text-slate-600">-</span>
+                        )}
                       </td>
 
                       {/* Row Actions */}

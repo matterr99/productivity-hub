@@ -1,8 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Navbar, ActiveTab } from './components/Navbar';
 import { EisenhowerMatrixView } from './components/EisenhowerMatrixView';
-import { ImpactEffortMatrixView } from './components/ImpactEffortMatrixView';
-import { DailyFocusView } from './components/DailyFocusView';
 import { BacklogTableView } from './components/BacklogTableView';
 import { KanbanBoardView } from './components/KanbanBoardView';
 import { ProjectsHubView } from './components/ProjectsHubView';
@@ -23,7 +21,6 @@ import {
   saveThemeToStorage,
   resetToDefaultDataset
 } from './utils/storage';
-import { calculateIceScore } from './utils/priorityCalculations';
 import { getTranslation } from './i18n/translations';
 
 export default function App() {
@@ -32,7 +29,7 @@ export default function App() {
   const [tasks, setTasks] = useState<Task[]>(() => loadTasksFromStorage());
   const [categories, setCategories] = useState<CategoryInfo[]>(() => loadCategoriesFromStorage());
   const [focusGoal, setFocusGoal] = useState<string>(() => loadFocusGoal(lang));
-  const [activeTab, setActiveTab] = useState<ActiveTab>('matrix');
+  const [activeTab, setActiveTab] = useState<ActiveTab>('table');
 
   // Modals state
   const [editingTask, setEditingTask] = useState<Task | null>(null);
@@ -94,35 +91,6 @@ export default function App() {
     setTasks(updated);
   };
 
-  const handleToggleDailyFocus = (task: Task) => {
-    const updated = tasks.map((t) =>
-      t.id === task.id
-        ? { ...t, isDailyFocus: !t.isDailyFocus, updatedAt: new Date().toISOString() }
-        : t
-    );
-    setTasks(updated);
-  };
-
-  const handleToggleSubtask = (task: Task, subtaskId: string) => {
-    const updatedSubtasks = task.subtasks.map((st) =>
-      st.id === subtaskId ? { ...st, completed: !st.completed } : st
-    );
-    const allDone = updatedSubtasks.length > 0 && updatedSubtasks.every((st) => st.completed);
-
-    const updated = tasks.map((t) =>
-      t.id === task.id
-        ? {
-            ...t,
-            subtasks: updatedSubtasks,
-            status: allDone ? ('done' as TaskStatus) : t.status,
-            completedAt: allDone ? new Date().toISOString() : t.completedAt,
-            updatedAt: new Date().toISOString(),
-          }
-        : t
-    );
-    setTasks(updated);
-  };
-
   const handleUpdateTask = (updatedTask: Task) => {
     const updated = tasks.map((t) => (t.id === updatedTask.id ? updatedTask : t));
     setTasks(updated);
@@ -146,19 +114,12 @@ export default function App() {
       status: partial.status || 'todo',
       priority: partial.priority || 'p2_high',
       quadrant: partial.quadrant || 'q2_schedule',
-      impact: partial.impact || 7,
-      effort: partial.effort || 3,
-      iceScore: calculateIceScore(
-        partial.impact || 7,
-        partial.effort || 3,
-        partial.priority || 'p2_high'
-      ),
-      estimatedDuration: partial.estimatedDuration || '30 min',
+      dueDate: partial.dueDate || undefined,
+      estimatedDuration: partial.estimatedDuration || undefined,
       subtasks: partial.subtasks || [],
       tags: partial.tags || [partial.category || defaultCat],
-      notes: partial.notes || '',
-      nextImmediateStep: partial.nextImmediateStep || '',
-      isDailyFocus: Boolean(partial.isDailyFocus),
+      notes: partial.notes || undefined,
+      nextImmediateStep: partial.nextImmediateStep || undefined,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
@@ -182,7 +143,7 @@ export default function App() {
         ? {
             ...t,
             status,
-            completedAt: status === 'done' ? new Date().toISOString() : undefined,
+            completedAt: status === 'done' ? (task.completedAt || new Date().toISOString()) : undefined,
             updatedAt: new Date().toISOString(),
           }
         : t
@@ -198,7 +159,7 @@ export default function App() {
           ? {
               ...t,
               status,
-              completedAt: status === 'done' ? new Date().toISOString() : undefined,
+              completedAt: status === 'done' ? (t.completedAt || new Date().toISOString()) : undefined,
               updatedAt: new Date().toISOString(),
             }
           : t
@@ -260,14 +221,8 @@ export default function App() {
       status: defaultProps?.status || 'todo',
       priority: defaultProps?.priority || 'p2_high',
       quadrant: defaultProps?.quadrant || 'q2_schedule',
-      impact: defaultProps?.impact || 7,
-      effort: defaultProps?.effort || 3,
-      iceScore: calculateIceScore(
-        defaultProps?.impact || 7,
-        defaultProps?.effort || 3,
-        defaultProps?.priority || 'p2_high'
-      ),
-      estimatedDuration: '30 min',
+      estimatedDuration: defaultProps?.estimatedDuration || '',
+      dueDate: defaultProps?.dueDate || '',
       subtasks: [],
       tags: [],
       createdAt: new Date().toISOString(),
@@ -286,6 +241,13 @@ export default function App() {
     setTasks([...newTasks, ...tasks]);
   };
 
+  const handleRestoreBackup = (restoredTasks: Task[], restoredCategories?: CategoryInfo[]) => {
+    setTasks(restoredTasks);
+    if (restoredCategories && restoredCategories.length > 0) {
+      setCategories(restoredCategories);
+    }
+  };
+
   const handleResetData = () => {
     if (confirm(tNavbar.resetConfirm)) {
       const reset = resetToDefaultDataset();
@@ -300,7 +262,7 @@ export default function App() {
   return (
     <div className={`min-h-screen ${theme === 'dark' ? 'dark' : ''} bg-slate-100/70 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col font-sans transition-colors duration-200`}>
       
-      {/* Navbar adhering to 3-zone contract with Language and Theme Switchers */}
+      {/* Navbar with 4 primary views and utility actions */}
       <Navbar
         activeTab={activeTab}
         setActiveTab={setActiveTab}
@@ -318,51 +280,12 @@ export default function App() {
       />
 
       {/* Main Content Area */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
-        {activeTab === 'matrix' && (
-          <EisenhowerMatrixView
-            tasks={tasks}
-            categories={categories}
-            onToggleComplete={handleToggleComplete}
-            onToggleDailyFocus={handleToggleDailyFocus}
-            onEdit={handleOpenEdit}
-            onChangeQuadrant={handleChangeQuadrant}
-            onQuickAddTask={(q) => handleQuickAddTask({ quadrant: q })}
-            focusGoal={focusGoal}
-            onUpdateFocusGoal={setFocusGoal}
-            lang={lang}
-          />
-        )}
-
-        {activeTab === 'impact_effort' && (
-          <ImpactEffortMatrixView
-            tasks={tasks}
-            categories={categories}
-            onToggleComplete={handleToggleComplete}
-            onToggleDailyFocus={handleToggleDailyFocus}
-            onEdit={handleOpenEdit}
-            onQuickAdd={() => handleQuickAddTask()}
-            lang={lang}
-          />
-        )}
-
-        {activeTab === 'daily_focus' && (
-          <DailyFocusView
-            tasks={tasks}
-            onToggleComplete={handleToggleComplete}
-            onToggleDailyFocus={handleToggleDailyFocus}
-            onEdit={handleOpenEdit}
-            onToggleSubtask={handleToggleSubtask}
-            lang={lang}
-          />
-        )}
-
+      <main className="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
         {activeTab === 'table' && (
           <BacklogTableView
             tasks={tasks}
             categories={categories}
             onToggleComplete={handleToggleComplete}
-            onToggleDailyFocus={handleToggleDailyFocus}
             onUpdateTask={handleUpdateTask}
             onDeleteTask={handleDeleteTask}
             onBatchUpdateStatus={handleBatchUpdateStatus}
@@ -374,12 +297,25 @@ export default function App() {
           />
         )}
 
+        {activeTab === 'matrix' && (
+          <EisenhowerMatrixView
+            tasks={tasks}
+            categories={categories}
+            onToggleComplete={handleToggleComplete}
+            onEdit={handleOpenEdit}
+            onChangeQuadrant={handleChangeQuadrant}
+            onQuickAddTask={(q) => handleQuickAddTask({ quadrant: q })}
+            focusGoal={focusGoal}
+            onUpdateFocusGoal={setFocusGoal}
+            lang={lang}
+          />
+        )}
+
         {activeTab === 'kanban' && (
           <KanbanBoardView
             tasks={tasks}
             categories={categories}
             onToggleComplete={handleToggleComplete}
-            onToggleDailyFocus={handleToggleDailyFocus}
             onEdit={handleOpenEdit}
             onChangeQuadrant={handleChangeQuadrant}
             onChangeStatus={handleChangeStatus}
@@ -393,7 +329,6 @@ export default function App() {
             tasks={tasks}
             categories={categories}
             onToggleComplete={handleToggleComplete}
-            onToggleDailyFocus={handleToggleDailyFocus}
             onEdit={handleOpenEdit}
             onChangeQuadrant={handleChangeQuadrant}
             onAddNewTask={handleQuickAddTask}
@@ -438,6 +373,7 @@ export default function App() {
         tasks={tasks}
         categories={categories}
         onImportTasks={handleImportTasks}
+        onRestoreBackup={handleRestoreBackup}
         lang={lang}
       />
 

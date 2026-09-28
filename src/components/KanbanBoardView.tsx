@@ -15,7 +15,6 @@ interface KanbanBoardViewProps {
   tasks: Task[];
   categories: CategoryInfo[];
   onToggleComplete: (task: Task) => void;
-  onToggleDailyFocus: (task: Task) => void;
   onEdit: (task: Task) => void;
   onChangeQuadrant: (task: Task, quadrant: EisenhowerQuadrant) => void;
   onChangeStatus: (task: Task, status: TaskStatus) => void;
@@ -27,7 +26,6 @@ export const KanbanBoardView: React.FC<KanbanBoardViewProps> = ({
   tasks,
   categories,
   onToggleComplete,
-  onToggleDailyFocus,
   onEdit,
   onChangeQuadrant,
   onChangeStatus,
@@ -174,7 +172,6 @@ export const KanbanBoardView: React.FC<KanbanBoardViewProps> = ({
                       <TaskCard
                         task={taskItem}
                         onToggleComplete={onToggleComplete}
-                        onToggleDailyFocus={onToggleDailyFocus}
                         onEdit={onEdit}
                         onChangeQuadrant={onChangeQuadrant}
                         lang={lang}

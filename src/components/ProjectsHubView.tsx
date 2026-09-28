@@ -16,7 +16,6 @@ interface ProjectsHubViewProps {
   tasks: Task[];
   categories: CategoryInfo[];
   onToggleComplete: (task: Task) => void;
-  onToggleDailyFocus: (task: Task) => void;
   onEdit: (task: Task) => void;
   onChangeQuadrant: (task: Task, quadrant: EisenhowerQuadrant) => void;
   onAddNewTask: (task: Partial<Task>) => void;
@@ -30,7 +29,6 @@ export const ProjectsHubView: React.FC<ProjectsHubViewProps> = ({
   tasks,
   categories,
   onToggleComplete,
-  onToggleDailyFocus,
   onEdit,
   onChangeQuadrant,
   onAddNewTask,
@@ -188,7 +186,6 @@ export const ProjectsHubView: React.FC<ProjectsHubViewProps> = ({
                           key={taskItem.id}
                           task={taskItem}
                           onToggleComplete={onToggleComplete}
-                          onToggleDailyFocus={onToggleDailyFocus}
                           onEdit={onEdit}
                           onChangeQuadrant={onChangeQuadrant}
                           showQuadrantSelector={true}

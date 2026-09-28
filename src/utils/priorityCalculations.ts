@@ -1,4 +1,4 @@
-import { Task, TaskPriority, EisenhowerQuadrant } from '../types/task';
+import { TaskPriority, EisenhowerQuadrant } from '../types/task';
 
 export const QUADRANT_CONFIG: Record<
   EisenhowerQuadrant,
@@ -18,7 +18,7 @@ export const QUADRANT_CONFIG: Record<
     id: 'q1_do',
     title: 'Q1: Do First',
     subtitle: 'Urgent & Important',
-    description: 'Critical deadlines, legal bottlenecks, customer blockers & urgent fires.',
+    description: 'Critical deadlines, urgent blockers & high priority actions.',
     badgeText: 'Do Now',
     badgeColor: 'text-rose-700 bg-rose-50 border-rose-200 dark:text-rose-300 dark:bg-rose-950/50 dark:border-rose-800/70',
     borderColor: 'border-rose-200 dark:border-rose-900/60',
@@ -27,10 +27,10 @@ export const QUADRANT_CONFIG: Record<
   },
   q2_schedule: {
     id: 'q2_schedule',
-    title: 'Q2: Schedule & Deep Work',
-    subtitle: 'Not Urgent & High Impact',
-    description: 'Strategic growth, tech improvements, high-ROI systems & proactive planning.',
-    badgeText: 'High ROI',
+    title: 'Q2: Schedule',
+    subtitle: 'Not Urgent & Important',
+    description: 'Strategic growth, tech improvements, planning & proactive goals.',
+    badgeText: 'Schedule',
     badgeColor: 'text-indigo-700 bg-indigo-50 border-indigo-200 dark:text-indigo-300 dark:bg-indigo-950/50 dark:border-indigo-800/70',
     borderColor: 'border-indigo-200 dark:border-indigo-900/60',
     bgAccent: 'bg-indigo-50/40 dark:bg-indigo-950/20',
@@ -39,9 +39,9 @@ export const QUADRANT_CONFIG: Record<
   q3_delegate: {
     id: 'q3_delegate',
     title: 'Q3: Delegate / Quick Win',
-    subtitle: 'Urgent & Lower Leverage',
-    description: 'Routine inquiries, quick phone calls, simple administrative followups.',
-    badgeText: 'Delegate/Fast',
+    subtitle: 'Urgent & Less Critical',
+    description: 'Routine inquiries, quick follow-ups, calls & administrative items.',
+    badgeText: 'Delegate',
     badgeColor: 'text-amber-700 bg-amber-50 border-amber-200 dark:text-amber-300 dark:bg-amber-950/50 dark:border-amber-800/70',
     borderColor: 'border-amber-200 dark:border-amber-900/60',
     bgAccent: 'bg-amber-50/40 dark:bg-amber-950/20',
@@ -49,10 +49,10 @@ export const QUADRANT_CONFIG: Record<
   },
   q4_eliminate: {
     id: 'q4_eliminate',
-    title: 'Q4: Eliminate / Re-evaluate',
-    subtitle: 'Low Urgency & Low Impact',
-    description: 'Nice-to-haves, stale backlog ideas, or low-yield time sinks.',
-    badgeText: 'Evaluate',
+    title: 'Q4: Backlog / Re-evaluate',
+    subtitle: 'Not Urgent & Low Impact',
+    description: 'Ideas, nice-to-haves, low urgency backlog items.',
+    badgeText: 'Backlog',
     badgeColor: 'text-slate-600 bg-slate-100 border-slate-200 dark:text-slate-400 dark:bg-slate-800 dark:border-slate-700',
     borderColor: 'border-slate-200 dark:border-slate-800',
     bgAccent: 'bg-slate-50/60 dark:bg-slate-900/40',
@@ -100,17 +100,3 @@ export const PRIORITY_CONFIG: Record<
   },
 };
 
-export function calculateIceScore(impact: number, effort: number, priority: TaskPriority): number {
-  // Impact: 1-10, Ease: 11 - effort (so low effort = high ease)
-  const ease = Math.max(1, 11 - effort);
-  const priorityMultiplier = priority === 'p1_critical' ? 1.2 : priority === 'p2_high' ? 1.0 : priority === 'p3_medium' ? 0.85 : 0.7;
-  const rawScore = (impact * 1.5 + ease * 1.2) * 3.5 * priorityMultiplier;
-  return Math.min(100, Math.max(1, Math.round(rawScore)));
-}
-
-export function getImpactEffortQuadrant(impact: number, effort: number): 'quick_wins' | 'major_bets' | 'fill_ins' | 'time_sinks' {
-  if (impact >= 6 && effort <= 5) return 'quick_wins';
-  if (impact >= 6 && effort > 5) return 'major_bets';
-  if (impact < 6 && effort <= 5) return 'fill_ins';
-  return 'time_sinks';
-}
