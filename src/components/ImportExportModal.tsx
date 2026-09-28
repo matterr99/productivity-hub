@@ -10,17 +10,19 @@ import {
   FileJson,
   FileText,
   RotateCcw,
-  Sparkles
+  Sparkles,
+  FolderTree
 } from 'lucide-react';
 import { Task, CategoryInfo, Language, AppBackupData } from '../types/task';
 import { getTranslation } from '../i18n/translations';
+import { mergeCategoriesFromImport } from '../utils/categoryHelpers';
 
 interface ImportExportModalProps {
   isOpen: boolean;
   onClose: () => void;
   tasks: Task[];
   categories: CategoryInfo[];
-  onImportTasks: (newTasks: Task[]) => void;
+  onImportTasks: (newTasks: Task[], newCategories?: CategoryInfo[]) => void;
   onRestoreBackup?: (tasks: Task[], categories?: CategoryInfo[]) => void;
   lang: Language;
 }
@@ -45,6 +47,7 @@ export const ImportExportModal: React.FC<ImportExportModalProps> = ({
     tasks: Task[];
     categories?: CategoryInfo[];
     isFullBackup: boolean;
+    detectedCategories: string[];
   } | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -91,10 +94,10 @@ export const ImportExportModal: React.FC<ImportExportModalProps> = ({
           
           // Case 1: Full App Backup object { tasks: [...], categories: [...] }
           if (parsed && typeof parsed === 'object' && Array.isArray(parsed.tasks)) {
-            const validTasks: Task[] = parsed.tasks.map((item: any, idx: number) => ({
+            const rawTasks: Task[] = parsed.tasks.map((item: any, idx: number) => ({
               id: item.id || `task-imp-${Date.now()}-${idx}`,
               title: item.title || item.name || 'Untitled Task',
-              category: item.category || defaultCategory,
+              category: (item.category || defaultCategory).trim(),
               status: item.status || 'todo',
               priority: item.priority || 'p2_high',
               quadrant: item.quadrant || 'q2_schedule',
@@ -109,30 +112,39 @@ export const ImportExportModal: React.FC<ImportExportModalProps> = ({
               completedAt: item.completedAt || undefined,
             }));
 
-            const validCategories: CategoryInfo[] | undefined = Array.isArray(parsed.categories) 
+            const explicitCategories: CategoryInfo[] | undefined = Array.isArray(parsed.categories) 
               ? parsed.categories.map((c: any) => ({
-                  id: c.id || `CAT-${Date.now()}`,
-                  name: c.name || 'Category',
+                  id: (c.id || c.name || `CAT-${Date.now()}`).trim(),
+                  name: (c.name || c.id || 'Category').trim(),
                   color: c.color || '#2563EB',
                   badgeBg: c.badgeBg || 'bg-blue-50 text-blue-700 border-blue-200',
-                  description: c.description || '',
+                  description: c.description || `Workspace for ${c.name || c.id}`,
                 }))
               : undefined;
 
+            const { mergedCategories, normalizedTasks } = mergeCategoriesFromImport(
+              categories,
+              rawTasks,
+              explicitCategories
+            );
+
+            const uniqueCatNames = Array.from(new Set(normalizedTasks.map((tItem) => tItem.category)));
+
             setParsedPreview({
-              tasks: validTasks,
-              categories: validCategories,
-              isFullBackup: Boolean(validCategories && validCategories.length > 0),
+              tasks: normalizedTasks,
+              categories: mergedCategories,
+              isFullBackup: Boolean(explicitCategories && explicitCategories.length > 0),
+              detectedCategories: uniqueCatNames,
             });
             return;
           }
 
           // Case 2: Array of Task objects [...]
           if (Array.isArray(parsed)) {
-            const validTasks: Task[] = parsed.map((item: any, idx: number) => ({
+            const rawTasks: Task[] = parsed.map((item: any, idx: number) => ({
               id: item.id || `task-imp-${Date.now()}-${idx}`,
               title: item.title || item.name || 'Untitled Task',
-              category: item.category || defaultCategory,
+              category: (item.category || defaultCategory).trim(),
               status: item.status === 'done' ? 'done' : (item.status || 'todo'),
               priority: item.priority || 'p2_high',
               quadrant: item.quadrant || 'q2_schedule',
@@ -145,12 +157,20 @@ export const ImportExportModal: React.FC<ImportExportModalProps> = ({
               createdAt: item.createdAt || new Date().toISOString(),
               updatedAt: new Date().toISOString(),
               completedAt: item.completedAt || undefined,
-            })).filter((t) => t.title && t.title.trim().length > 0);
+            })).filter((tItem) => tItem.title && tItem.title.trim().length > 0);
 
-            if (validTasks.length > 0) {
+            if (rawTasks.length > 0) {
+              const { mergedCategories, normalizedTasks } = mergeCategoriesFromImport(
+                categories,
+                rawTasks
+              );
+              const uniqueCatNames = Array.from(new Set(normalizedTasks.map((tItem) => tItem.category)));
+
               setParsedPreview({
-                tasks: validTasks,
+                tasks: normalizedTasks,
+                categories: mergedCategories,
                 isFullBackup: false,
+                detectedCategories: uniqueCatNames,
               });
               return;
             }
@@ -188,16 +208,17 @@ export const ImportExportModal: React.FC<ImportExportModalProps> = ({
           const parts = line.split(delimiter).map((p) => p.replace(/^["']|["']$/g, '').trim());
           const title = parts[0] || parts[1];
           if (title && title.length > 1) {
+            const taskCategory = parts[2] ? parts[2].trim() : currentCat;
             parsedTasks.push({
               id: `task-imp-${Date.now()}-${parsedTasks.length}`,
               title,
-              category: parts[2] && categories.some((c) => c.id === parts[2]) ? parts[2] : currentCat,
+              category: taskCategory,
               status: parts[3] === 'done' || parts[3] === 'completed' ? 'done' : 'todo',
               priority: 'p2_high',
               quadrant: 'q2_schedule',
               notes: parts[4] || undefined,
               subtasks: [],
-              tags: [currentCat],
+              tags: [taskCategory],
               createdAt: new Date().toISOString(),
               updatedAt: new Date().toISOString(),
             });
@@ -225,9 +246,17 @@ export const ImportExportModal: React.FC<ImportExportModalProps> = ({
         return;
       }
 
+      const { mergedCategories, normalizedTasks } = mergeCategoriesFromImport(
+        categories,
+        parsedTasks
+      );
+      const uniqueCatNames = Array.from(new Set(normalizedTasks.map((tItem) => tItem.category)));
+
       setParsedPreview({
-        tasks: parsedTasks,
+        tasks: normalizedTasks,
+        categories: mergedCategories,
         isFullBackup: false,
+        detectedCategories: uniqueCatNames,
       });
 
     } catch (err: any) {
@@ -242,13 +271,13 @@ export const ImportExportModal: React.FC<ImportExportModalProps> = ({
     if (mode === 'restore' && onRestoreBackup) {
       onRestoreBackup(parsedPreview.tasks, parsedPreview.categories);
     } else {
-      onImportTasks(parsedPreview.tasks);
+      onImportTasks(parsedPreview.tasks, parsedPreview.categories);
     }
 
     setSuccessMsg(
       lang === 'es'
-        ? `¡Se importaron con éxito ${parsedPreview.tasks.length} tareas!`
-        : `Successfully imported ${parsedPreview.tasks.length} tasks!`
+        ? `¡Se importaron con éxito ${parsedPreview.tasks.length} tareas y ${parsedPreview.detectedCategories.length} categorías!`
+        : `Successfully imported ${parsedPreview.tasks.length} tasks and synchronized ${parsedPreview.detectedCategories.length} categories!`
     );
     setTimeout(() => {
       onClose();
@@ -414,7 +443,7 @@ export const ImportExportModal: React.FC<ImportExportModalProps> = ({
                   {selectedFile ? selectedFile.name : (lang === 'es' ? 'Selecciona o arrastra tu archivo JSON o CSV' : 'Select or drop your JSON or CSV file')}
                 </h4>
                 <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                  {lang === 'es' ? 'Soporta copias de seguridad completas de PrioritizeHQ o exportaciones en JSON' : 'Supports full PrioritizeHQ JSON backups or exported task arrays'}
+                  {lang === 'es' ? 'Extrae y sincroniza automáticamente tareas y categorías personalizadas' : 'Automatically extracts and synchronizes tasks and custom categories'}
                 </p>
                 <div className="mt-4">
                   <span className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-xs font-semibold text-slate-700 dark:text-slate-200 shadow-2xs">
@@ -426,16 +455,35 @@ export const ImportExportModal: React.FC<ImportExportModalProps> = ({
               {/* Preview & Action Buttons */}
               {parsedPreview && (
                 <div className="p-4 bg-slate-50 dark:bg-slate-800/70 rounded-xl border border-slate-200 dark:border-slate-700/80 space-y-3">
-                  <div className="flex items-center justify-between text-xs">
+                  <div className="flex items-center justify-between text-xs flex-wrap gap-2">
                     <span className="font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
                       <Sparkles className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
                       <span>{lang === 'es' ? 'Archivo detectado' : 'Detected File Content'}</span>
                     </span>
                     <span className="font-mono bg-indigo-100 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 px-2 py-0.5 rounded font-semibold">
-                      {parsedPreview.tasks.length} {lang === 'es' ? 'tareas' : 'tasks'}
-                      {parsedPreview.categories ? ` · ${parsedPreview.categories.length} ${lang === 'es' ? 'categorías' : 'categories'}` : ''}
+                      {parsedPreview.tasks.length} {lang === 'es' ? 'tareas' : 'tasks'} · {parsedPreview.detectedCategories.length} {lang === 'es' ? 'categorías' : 'categories'}
                     </span>
                   </div>
+
+                  {/* List of categories detected */}
+                  {parsedPreview.detectedCategories.length > 0 && (
+                    <div className="pt-1">
+                      <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 block mb-1">
+                        {lang === 'es' ? 'Categorías detectadas:' : 'Detected categories:'}
+                      </span>
+                      <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto">
+                        {parsedPreview.detectedCategories.map((catName) => (
+                          <span 
+                            key={catName}
+                            className="px-2 py-0.5 text-[11px] font-medium rounded-md bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 flex items-center gap-1"
+                          >
+                            <FolderTree className="w-3 h-3 text-purple-600 dark:text-purple-400" />
+                            <span>{catName}</span>
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-2">
                     <button
@@ -443,13 +491,13 @@ export const ImportExportModal: React.FC<ImportExportModalProps> = ({
                       className="py-2.5 px-4 bg-slate-900 dark:bg-indigo-600 hover:bg-slate-800 dark:hover:bg-indigo-700 text-white font-semibold text-xs rounded-xl transition-colors flex items-center justify-center gap-2 shadow-xs cursor-pointer"
                     >
                       <Upload className="w-4 h-4" />
-                      <span>{lang === 'es' ? 'Agregar a Tareas Actuales' : 'Append to Current Tasks'}</span>
+                      <span>{lang === 'es' ? 'Importar y Fusionar Categorías' : 'Import & Merge Categories'}</span>
                     </button>
 
                     {parsedPreview.isFullBackup && onRestoreBackup && (
                       <button
                         onClick={() => {
-                          if (confirm(lang === 'es' ? '¿Deseas reemplazar todas las tareas y categorías con esta copia de seguridad?' : 'Restore full backup? This will replace current tasks & categories with the file.')) {
+                          if (confirm(lang === 'es' ? '¿Deseas restaurar la copia completa? Esto reemplazará las tareas y cargará las categorías del archivo.' : 'Restore full backup? This will replace current tasks and load all categories from the file.')) {
                             handleApplyImport('restore');
                           }
                         }}
@@ -528,8 +576,8 @@ export const ImportExportModal: React.FC<ImportExportModalProps> = ({
                 </h4>
                 <p className="text-xs text-slate-500 dark:text-slate-400">
                   {lang === 'es' 
-                    ? 'Descarga una copia completa en JSON o una hoja de cálculo en formato CSV.'
-                    : 'Download a complete JSON backup or a spreadsheet CSV file.'}
+                    ? 'Descarga una copia completa en JSON con categorías o una hoja de cálculo en CSV.'
+                    : 'Download a complete JSON backup with all categories or a spreadsheet CSV file.'}
                 </p>
               </div>
 

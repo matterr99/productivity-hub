@@ -22,6 +22,7 @@ import {
   resetToDefaultDataset
 } from './utils/storage';
 import { getTranslation } from './i18n/translations';
+import { mergeCategoriesFromImport } from './utils/categoryHelpers';
 
 export default function App() {
   const [lang, setLang] = useState<Language>(() => loadLanguageFromStorage());
@@ -237,15 +238,24 @@ export default function App() {
     setIsTaskModalOpen(true);
   };
 
-  const handleImportTasks = (newTasks: Task[]) => {
-    setTasks([...newTasks, ...tasks]);
+  const handleImportTasks = (newTasks: Task[], newCategories?: CategoryInfo[]) => {
+    const { mergedCategories, normalizedTasks } = mergeCategoriesFromImport(
+      categories,
+      newTasks,
+      newCategories
+    );
+    setCategories(mergedCategories);
+    setTasks([...normalizedTasks, ...tasks]);
   };
 
   const handleRestoreBackup = (restoredTasks: Task[], restoredCategories?: CategoryInfo[]) => {
-    setTasks(restoredTasks);
-    if (restoredCategories && restoredCategories.length > 0) {
-      setCategories(restoredCategories);
-    }
+    const { mergedCategories, normalizedTasks } = mergeCategoriesFromImport(
+      restoredCategories && restoredCategories.length > 0 ? restoredCategories : categories,
+      restoredTasks,
+      restoredCategories
+    );
+    setCategories(mergedCategories);
+    setTasks(normalizedTasks);
   };
 
   const handleResetData = () => {
