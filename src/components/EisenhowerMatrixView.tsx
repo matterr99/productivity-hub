@@ -7,7 +7,7 @@ import {
   Search, 
   Plus
 } from 'lucide-react';
-import { Task, EisenhowerQuadrant, CategoryInfo, Language } from '../types/task';
+import { Task, EisenhowerQuadrant, TaskPriority, CategoryInfo, Language } from '../types/task';
 import { TaskCard } from './TaskCard';
 import { QUADRANT_CONFIG } from '../utils/priorityCalculations';
 import { getTranslation } from '../i18n/translations';
@@ -59,8 +59,24 @@ export const EisenhowerMatrixView: React.FC<EisenhowerMatrixViewProps> = ({
     return true;
   });
 
+  // Get quadrant tasks with uncompleted tasks prioritized at the top
   const getQuadrantTasks = (q: EisenhowerQuadrant) => {
-    return filteredTasks.filter((t) => t.quadrant === q);
+    return filteredTasks
+      .filter((t) => t.quadrant === q)
+      .sort((a, b) => {
+        const aDone = a.status === 'done';
+        const bDone = b.status === 'done';
+        if (aDone !== bDone) {
+          return aDone ? 1 : -1;
+        }
+        const orderMap: Record<TaskPriority, number> = {
+          p1_critical: 4,
+          p2_high: 3,
+          p3_medium: 2,
+          p4_low: 1,
+        };
+        return (orderMap[b.priority] || 0) - (orderMap[a.priority] || 0);
+      });
   };
 
   const handleGoalSave = () => {
@@ -93,7 +109,7 @@ export const EisenhowerMatrixView: React.FC<EisenhowerMatrixViewProps> = ({
                   />
                   <button
                     onClick={handleGoalSave}
-                    className="px-3 py-1.5 text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 rounded-lg transition-colors cursor-pointer"
+                    className="px-3.5 py-1.5 text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 rounded-lg transition-colors cursor-pointer"
                   >
                     {t.saveGoal}
                   </button>
@@ -118,7 +134,7 @@ export const EisenhowerMatrixView: React.FC<EisenhowerMatrixViewProps> = ({
           {!isEditingGoal && (
             <button
               onClick={() => setIsEditingGoal(true)}
-              className="px-3 py-1.5 text-xs font-medium text-indigo-200 hover:text-white bg-white/10 hover:bg-white/15 rounded-lg transition-colors cursor-pointer self-end sm:self-auto shrink-0"
+              className="px-3.5 py-1.5 text-xs font-medium text-indigo-200 hover:text-white bg-white/10 hover:bg-white/15 rounded-lg transition-colors cursor-pointer self-end sm:self-auto shrink-0"
             >
               {t.editGoal}
             </button>
@@ -130,7 +146,7 @@ export const EisenhowerMatrixView: React.FC<EisenhowerMatrixViewProps> = ({
       <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3 bg-white dark:bg-slate-900 p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-2xs">
         
         {/* Category Tabs */}
-        <div className="flex items-center gap-1 overflow-x-auto no-scrollbar pb-1 lg:pb-0">
+        <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-1 lg:pb-0">
           <button
             onClick={() => setSelectedCategory('ALL')}
             className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors whitespace-nowrap cursor-pointer ${
@@ -188,21 +204,21 @@ export const EisenhowerMatrixView: React.FC<EisenhowerMatrixViewProps> = ({
 
       </div>
 
-      {/* Mobile Quadrant Quick Switcher Pills (visible only on small mobile screens) */}
+      {/* Mobile Quadrant Quick Switcher Pills */}
       <div className="md:hidden flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar">
         <button
           onClick={() => setMobileActiveQuadrant('ALL')}
-          className={`px-3 py-1 text-xs font-semibold rounded-lg shrink-0 transition-colors ${
+          className={`px-3 py-1.5 text-xs font-semibold rounded-lg shrink-0 transition-colors cursor-pointer ${
             mobileActiveQuadrant === 'ALL'
               ? 'bg-slate-900 dark:bg-indigo-600 text-white'
               : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700'
           }`}
         >
-          {lang === 'es' ? 'Todos los Cuadrantes' : 'All 4 Quadrants'}
+          {lang === 'es' ? 'Todos' : 'All 4'}
         </button>
         <button
           onClick={() => setMobileActiveQuadrant('q1_do')}
-          className={`px-3 py-1 text-xs font-semibold rounded-lg shrink-0 transition-colors ${
+          className={`px-3 py-1.5 text-xs font-semibold rounded-lg shrink-0 transition-colors cursor-pointer ${
             mobileActiveQuadrant === 'q1_do'
               ? 'bg-rose-600 text-white'
               : 'bg-white dark:bg-slate-800 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-900/60'
@@ -212,7 +228,7 @@ export const EisenhowerMatrixView: React.FC<EisenhowerMatrixViewProps> = ({
         </button>
         <button
           onClick={() => setMobileActiveQuadrant('q2_schedule')}
-          className={`px-3 py-1 text-xs font-semibold rounded-lg shrink-0 transition-colors ${
+          className={`px-3 py-1.5 text-xs font-semibold rounded-lg shrink-0 transition-colors cursor-pointer ${
             mobileActiveQuadrant === 'q2_schedule'
               ? 'bg-indigo-600 text-white'
               : 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-900/60'
@@ -222,7 +238,7 @@ export const EisenhowerMatrixView: React.FC<EisenhowerMatrixViewProps> = ({
         </button>
         <button
           onClick={() => setMobileActiveQuadrant('q3_delegate')}
-          className={`px-3 py-1 text-xs font-semibold rounded-lg shrink-0 transition-colors ${
+          className={`px-3 py-1.5 text-xs font-semibold rounded-lg shrink-0 transition-colors cursor-pointer ${
             mobileActiveQuadrant === 'q3_delegate'
               ? 'bg-amber-600 text-white'
               : 'bg-white dark:bg-slate-800 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-900/60'
@@ -232,7 +248,7 @@ export const EisenhowerMatrixView: React.FC<EisenhowerMatrixViewProps> = ({
         </button>
         <button
           onClick={() => setMobileActiveQuadrant('q4_eliminate')}
-          className={`px-3 py-1 text-xs font-semibold rounded-lg shrink-0 transition-colors ${
+          className={`px-3 py-1.5 text-xs font-semibold rounded-lg shrink-0 transition-colors cursor-pointer ${
             mobileActiveQuadrant === 'q4_eliminate'
               ? 'bg-slate-700 text-white'
               : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700'
@@ -242,7 +258,7 @@ export const EisenhowerMatrixView: React.FC<EisenhowerMatrixViewProps> = ({
         </button>
       </div>
 
-      {/* Eisenhower 2x2 Interactive Grid (Responsive: 1 col on mobile/filtered, 2 cols on tablet/iPad & desktop) */}
+      {/* Eisenhower 2x2 Interactive Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
         
         {/* Q1: Urgent & Important (Do First) */}

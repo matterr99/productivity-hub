@@ -5,14 +5,14 @@ import {
   CheckCircle2, 
   Circle, 
   Trash2, 
-  Plus, 
   CheckSquare, 
   Square, 
   Edit2,
   Calendar,
   Clock,
   LayoutList,
-  Table as TableIcon
+  Table as TableIcon,
+  FileText
 } from 'lucide-react';
 import { Task, CategoryInfo, TaskStatus, TaskPriority, EisenhowerQuadrant, Language } from '../types/task';
 import { getTranslation } from '../i18n/translations';
@@ -27,7 +27,7 @@ interface BacklogTableViewProps {
   onBatchUpdateQuadrant: (taskIds: string[], quadrant: EisenhowerQuadrant) => void;
   onBatchDelete: (taskIds: string[]) => void;
   onEdit: (task: Task) => void;
-  onAddNewTask: (task: Partial<Task>) => void;
+  onAddNewTask?: (task: Partial<Task>) => void;
   lang: Language;
 }
 
@@ -44,7 +44,6 @@ export const BacklogTableView: React.FC<BacklogTableViewProps> = ({
   onBatchUpdateQuadrant,
   onBatchDelete,
   onEdit,
-  onAddNewTask,
   lang,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
@@ -57,8 +56,6 @@ export const BacklogTableView: React.FC<BacklogTableViewProps> = ({
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
 
   const [selectedTaskIds, setSelectedTaskIds] = useState<string[]>([]);
-  const [newTitleInput, setNewTitleInput] = useState('');
-  const [newCategoryInput, setNewCategoryInput] = useState(categories[0]?.id || 'GENERAL');
   const [mobileLayoutMode, setMobileLayoutMode] = useState<'table' | 'cards'>('cards');
 
   const t = getTranslation(lang).table;
@@ -83,9 +80,17 @@ export const BacklogTableView: React.FC<BacklogTableViewProps> = ({
     return true;
   });
 
-  // Sort tasks
+  // Sort tasks: Completed tasks ALWAYS go to the bottom regardless of priority
   const sortedTasks = [...filteredTasks].sort((a, b) => {
-    let factor = sortOrder === 'asc' ? 1 : -1;
+    const aDone = a.status === 'done';
+    const bDone = b.status === 'done';
+    
+    // Incomplete tasks always precede completed tasks
+    if (aDone !== bDone) {
+      return aDone ? 1 : -1;
+    }
+
+    const factor = sortOrder === 'asc' ? 1 : -1;
     if (sortField === 'title') return a.title.localeCompare(b.title) * factor;
     if (sortField === 'category') return a.category.localeCompare(b.category) * factor;
     if (sortField === 'status') return a.status.localeCompare(b.status) * factor;
@@ -138,29 +143,15 @@ export const BacklogTableView: React.FC<BacklogTableViewProps> = ({
     );
   };
 
-  const handleQuickAddRow = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newTitleInput.trim()) return;
-
-    onAddNewTask({
-      title: newTitleInput.trim(),
-      category: newCategoryInput,
-      status: 'todo',
-      priority: 'p2_high',
-      quadrant: 'q2_schedule',
-    });
-
-    setNewTitleInput('');
-  };
-
   return (
     <div className="space-y-4">
       
       {/* Search & Multi-Filter Control Panel */}
-      <div className="bg-white dark:bg-slate-900 rounded-2xl p-3.5 sm:p-4 border border-slate-200 dark:border-slate-800 shadow-2xs space-y-3">
-        <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
+      <div className="bg-white dark:bg-slate-900 rounded-2xl p-3.5 sm:p-4 border border-slate-200 dark:border-slate-800 shadow-2xs">
+        <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3">
           
-          <div className="relative flex-1">
+          {/* Search Input */}
+          <div className="relative flex-1 min-w-[200px]">
             <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
               type="text"
@@ -171,12 +162,13 @@ export const BacklogTableView: React.FC<BacklogTableViewProps> = ({
             />
           </div>
 
+          {/* Filter Dropdowns */}
           <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
             {/* Category Filter */}
             <select
               value={selectedCategory}
               onChange={(e) => setSelectedCategory(e.target.value)}
-              className="px-2 sm:px-2.5 py-1.5 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-700 dark:text-slate-300 focus:outline-none cursor-pointer"
+              className="px-2.5 py-1.5 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-700 dark:text-slate-300 focus:outline-none cursor-pointer"
             >
               <option value="ALL">{t.allCategories} ({tasks.length})</option>
               {categories.map((c) => (
@@ -190,7 +182,7 @@ export const BacklogTableView: React.FC<BacklogTableViewProps> = ({
             <select
               value={selectedPriority}
               onChange={(e) => setSelectedPriority(e.target.value)}
-              className="px-2 sm:px-2.5 py-1.5 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-700 dark:text-slate-300 focus:outline-none cursor-pointer"
+              className="px-2.5 py-1.5 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-700 dark:text-slate-300 focus:outline-none cursor-pointer"
             >
               <option value="ALL">{t.allPriorities}</option>
               <option value="p1_critical">{tPriorities.p1_critical}</option>
@@ -203,7 +195,7 @@ export const BacklogTableView: React.FC<BacklogTableViewProps> = ({
             <select
               value={selectedQuadrant}
               onChange={(e) => setSelectedQuadrant(e.target.value)}
-              className="px-2 sm:px-2.5 py-1.5 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-700 dark:text-slate-300 focus:outline-none cursor-pointer"
+              className="px-2.5 py-1.5 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-700 dark:text-slate-300 focus:outline-none cursor-pointer"
             >
               <option value="ALL">{t.allQuadrants}</option>
               <option value="q1_do">{tQuadrants.q1_do}</option>
@@ -216,7 +208,7 @@ export const BacklogTableView: React.FC<BacklogTableViewProps> = ({
             <select
               value={selectedStatus}
               onChange={(e) => setSelectedStatus(e.target.value)}
-              className="px-2 sm:px-2.5 py-1.5 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-700 dark:text-slate-300 focus:outline-none cursor-pointer"
+              className="px-2.5 py-1.5 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-700 dark:text-slate-300 focus:outline-none cursor-pointer"
             >
               <option value="ALL">{t.allStatuses}</option>
               <option value="todo">To Do</option>
@@ -230,60 +222,31 @@ export const BacklogTableView: React.FC<BacklogTableViewProps> = ({
               <button
                 type="button"
                 onClick={() => setMobileLayoutMode('cards')}
-                className={`p-1 rounded cursor-pointer ${
+                className={`p-1.5 rounded cursor-pointer ${
                   mobileLayoutMode === 'cards' 
                     ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-2xs' 
                     : 'text-slate-400'
                 }`}
                 title="Cards view"
               >
-                <LayoutList className="w-3.5 h-3.5" />
+                <LayoutList className="w-4 h-4" />
               </button>
               <button
                 type="button"
                 onClick={() => setMobileLayoutMode('table')}
-                className={`p-1 rounded cursor-pointer ${
+                className={`p-1.5 rounded cursor-pointer ${
                   mobileLayoutMode === 'table' 
                     ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-2xs' 
                     : 'text-slate-400'
                 }`}
                 title="Table view"
               >
-                <TableIcon className="w-3.5 h-3.5" />
+                <TableIcon className="w-4 h-4" />
               </button>
             </div>
           </div>
 
         </div>
-
-        {/* Quick Add Row in Table */}
-        <form onSubmit={handleQuickAddRow} className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
-          <input
-            type="text"
-            value={newTitleInput}
-            onChange={(e) => setNewTitleInput(e.target.value)}
-            placeholder={t.quickAddPlaceholder}
-            className="flex-1 px-3 py-1.5 text-xs bg-slate-50 dark:bg-slate-800/90 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-          />
-          <select
-            value={newCategoryInput}
-            onChange={(e) => setNewCategoryInput(e.target.value)}
-            className="px-2.5 py-1.5 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-700 dark:text-slate-300 focus:outline-none cursor-pointer"
-          >
-            {categories.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-          </select>
-          <button
-            type="submit"
-            className="px-3 py-1.5 text-xs font-semibold bg-slate-900 dark:bg-indigo-600 text-white hover:bg-slate-800 dark:hover:bg-indigo-500 rounded-lg transition-colors flex items-center justify-center gap-1 shrink-0 cursor-pointer shadow-2xs"
-          >
-            <Plus className="w-3.5 h-3.5" />
-            <span>{t.addRowBtn}</span>
-          </button>
-        </form>
       </div>
 
       {/* Bulk Action Bar (when rows are selected) */}
@@ -351,7 +314,7 @@ export const BacklogTableView: React.FC<BacklogTableViewProps> = ({
                 key={taskItem.id}
                 className={`p-3.5 bg-white dark:bg-slate-900 rounded-xl border transition-all ${
                   isDone 
-                    ? 'border-slate-200 dark:border-slate-800 opacity-65 bg-slate-50/40 dark:bg-slate-900/40' 
+                    ? 'border-slate-200 dark:border-slate-800 opacity-60 bg-slate-50/40 dark:bg-slate-900/40' 
                     : 'border-slate-200 dark:border-slate-800 shadow-2xs'
                 }`}
               >
@@ -359,7 +322,7 @@ export const BacklogTableView: React.FC<BacklogTableViewProps> = ({
                   <div className="flex items-start gap-2.5 flex-1 min-w-0">
                     <button
                       onClick={() => onToggleComplete(taskItem)}
-                      className="mt-0.5 text-slate-300 dark:text-slate-600 hover:text-emerald-600 dark:hover:text-emerald-400 shrink-0 cursor-pointer"
+                      className="mt-0.5 text-slate-300 dark:text-slate-600 hover:text-emerald-600 dark:hover:text-emerald-400 shrink-0 cursor-pointer p-0.5"
                     >
                       {isDone ? (
                         <CheckCircle2 className="w-5 h-5 text-emerald-600 dark:text-emerald-400 fill-emerald-100 dark:fill-emerald-950/40" />
@@ -371,9 +334,10 @@ export const BacklogTableView: React.FC<BacklogTableViewProps> = ({
                       <h4 className={`text-sm font-semibold tracking-tight ${isDone ? 'line-through text-slate-400 dark:text-slate-500' : 'text-slate-900 dark:text-slate-100'}`}>
                         {taskItem.title}
                       </h4>
-                      {taskItem.nextImmediateStep && !isDone && (
-                        <p className="text-xs text-indigo-700 dark:text-indigo-300 font-normal mt-1 line-clamp-1">
-                          👉 {taskItem.nextImmediateStep}
+                      {/* Context Notes & Requirements under task title */}
+                      {taskItem.notes && (
+                        <p className="text-xs text-slate-600 dark:text-slate-300 font-normal mt-1.5 leading-relaxed bg-slate-50 dark:bg-slate-800/60 p-2 rounded-lg border border-slate-100 dark:border-slate-700/50">
+                          {taskItem.notes}
                         </p>
                       )}
                     </div>
@@ -381,7 +345,7 @@ export const BacklogTableView: React.FC<BacklogTableViewProps> = ({
 
                   <button
                     onClick={() => onEdit(taskItem)}
-                    className="p-1 text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 cursor-pointer"
+                    className="p-1.5 text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 cursor-pointer"
                   >
                     <Edit2 className="w-4 h-4" />
                   </button>
@@ -419,7 +383,7 @@ export const BacklogTableView: React.FC<BacklogTableViewProps> = ({
       {/* Spreadsheet Power Table (Desktop & Tablets, or when Table view selected on mobile) */}
       <div className={`${mobileLayoutMode === 'table' ? 'block' : 'hidden md:block'} bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-2xs`}>
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs border-collapse min-w-[720px]">
+          <table className="w-full text-left text-xs border-collapse min-w-[760px]">
             
             {/* Table Header */}
             <thead>
@@ -472,7 +436,7 @@ export const BacklogTableView: React.FC<BacklogTableViewProps> = ({
                   </div>
                 </th>
 
-                <th className="p-3 cursor-pointer hover:bg-slate-100/80 dark:hover:bg-slate-700/50 transition-colors w-28" onClick={() => handleSort('dueDate')}>
+                <th className="p-3 cursor-pointer hover:bg-slate-100/80 dark:hover:bg-slate-700/50 transition-colors w-32" onClick={() => handleSort('dueDate')}>
                   <div className="flex items-center gap-1.5">
                     <span>Due Date</span>
                     <ArrowUpDown className="w-3 h-3 text-slate-400" />
@@ -531,7 +495,7 @@ export const BacklogTableView: React.FC<BacklogTableViewProps> = ({
                         </button>
                       </td>
 
-                      {/* Title & Notes */}
+                      {/* Title & Context Notes/Requirements */}
                       <td className="p-3 font-medium">
                         <div className="flex items-center gap-2">
                           <span
@@ -543,10 +507,12 @@ export const BacklogTableView: React.FC<BacklogTableViewProps> = ({
                             {taskItem.title}
                           </span>
                         </div>
-                        {taskItem.nextImmediateStep && !isDone && (
-                          <p className="text-[11px] text-indigo-700 dark:text-indigo-300 font-normal mt-0.5 truncate max-w-md">
-                            👉 {taskItem.nextImmediateStep}
-                          </p>
+                        {/* Context notes and requirements displayed directly under title */}
+                        {taskItem.notes && (
+                          <div className="mt-1 text-[11px] text-slate-600 dark:text-slate-300 font-normal leading-relaxed flex items-start gap-1 max-w-lg">
+                            <FileText className="w-3 h-3 text-slate-400 shrink-0 mt-0.5" />
+                            <span className="line-clamp-2">{taskItem.notes}</span>
+                          </div>
                         )}
                       </td>
 
@@ -647,14 +613,14 @@ export const BacklogTableView: React.FC<BacklogTableViewProps> = ({
                           <button
                             onClick={() => onEdit(taskItem)}
                             title={lang === 'es' ? 'Editar Detalles' : 'Edit Details'}
-                            className="p-1 text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800 rounded cursor-pointer"
+                            className="p-1.5 text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800 rounded cursor-pointer"
                           >
                             <Edit2 className="w-3.5 h-3.5" />
                           </button>
                           <button
                             onClick={() => onDeleteTask(taskItem.id)}
                             title={lang === 'es' ? 'Eliminar Tarea' : 'Delete Task'}
-                            className="p-1 text-slate-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 rounded cursor-pointer"
+                            className="p-1.5 text-slate-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 rounded cursor-pointer"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
@@ -680,7 +646,7 @@ export const BacklogTableView: React.FC<BacklogTableViewProps> = ({
           <span className="tabular-nums">
             {t.completedSummary
               .replace('{done}', String(tasks.filter((taskItem) => taskItem.status === 'done').length))
-              .replace('{p1}', String(tasks.filter((taskItem) => taskItem.priority === 'p1_critical').length))}
+              .replace('{p1}', String(tasks.filter((taskItem) => taskItem.priority === 'p1_critical' && taskItem.status !== 'done').length))}
           </span>
         </div>
 

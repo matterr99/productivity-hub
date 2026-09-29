@@ -120,7 +120,6 @@ export default function App() {
       subtasks: partial.subtasks || [],
       tags: partial.tags || [partial.category || defaultCat],
       notes: partial.notes || undefined,
-      nextImmediateStep: partial.nextImmediateStep || undefined,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };

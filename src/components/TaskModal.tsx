@@ -8,7 +8,7 @@ import {
   Circle,
   Calendar,
   Clock,
-  Sparkles
+  FileText
 } from 'lucide-react';
 import { Task, CategoryInfo, TaskStatus, TaskPriority, EisenhowerQuadrant, Subtask, Language } from '../types/task';
 import { getTranslation } from '../i18n/translations';
@@ -22,6 +22,20 @@ interface TaskModalProps {
   onDeleteTask?: (taskId: string) => void;
   lang: Language;
 }
+
+const HOURS_LIST = Array.from({ length: 24 }, (_, i) => i);
+const MINUTES_LIST = [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55];
+
+const DURATION_PRESETS = [
+  { label: '15m', h: 0, m: 15 },
+  { label: '30m', h: 0, m: 30 },
+  { label: '45m', h: 0, m: 45 },
+  { label: '1h', h: 1, m: 0 },
+  { label: '1.5h', h: 1, m: 30 },
+  { label: '2h', h: 2, m: 0 },
+  { label: '4h', h: 4, m: 0 },
+  { label: '8h', h: 8, m: 0 },
+];
 
 export const TaskModal: React.FC<TaskModalProps> = ({
   isOpen,
@@ -42,12 +56,35 @@ export const TaskModal: React.FC<TaskModalProps> = ({
   const [status, setStatus] = useState<TaskStatus>('todo');
   const [priority, setPriority] = useState<TaskPriority>('p2_high');
   const [quadrant, setQuadrant] = useState<EisenhowerQuadrant>('q2_schedule');
-  const [estimatedDuration, setEstimatedDuration] = useState('');
+  
+  // iOS Duration Clock Picker state
+  const [selectedHours, setSelectedHours] = useState(0);
+  const [selectedMinutes, setSelectedMinutes] = useState(30);
+
+  // Date range state
+  const [startDate, setStartDate] = useState('');
   const [dueDate, setDueDate] = useState('');
+
   const [notes, setNotes] = useState('');
-  const [nextImmediateStep, setNextImmediateStep] = useState('');
   const [subtasks, setSubtasks] = useState<Subtask[]>([]);
   const [newSubtaskTitle, setNewSubtaskTitle] = useState('');
+
+  // Helper to parse duration string like "1 hr 30 min", "45 min", "2 hours"
+  const parseDurationString = (str?: string) => {
+    if (!str) return { h: 0, m: 30 };
+    const hMatch = str.match(/(\d+)\s*(?:h|hr|hour|horas)/i);
+    const mMatch = str.match(/(\d+)\s*(?:m|min|minute|minutos)/i);
+    const h = hMatch ? parseInt(hMatch[1], 10) : 0;
+    const m = mMatch ? parseInt(mMatch[1], 10) : 0;
+    return { h: Math.min(23, h), m: Math.min(55, m) };
+  };
+
+  const formatDurationString = (h: number, m: number) => {
+    if (h === 0 && m === 0) return '';
+    if (h > 0 && m > 0) return `${h} hr ${m} min`;
+    if (h > 0) return `${h} ${h === 1 ? 'hour' : 'hours'}`;
+    return `${m} min`;
+  };
 
   useEffect(() => {
     if (task) {
@@ -56,10 +93,12 @@ export const TaskModal: React.FC<TaskModalProps> = ({
       setStatus(task.status || 'todo');
       setPriority(task.priority || 'p2_high');
       setQuadrant(task.quadrant || 'q2_schedule');
-      setEstimatedDuration(task.estimatedDuration || '');
+      const { h, m } = parseDurationString(task.estimatedDuration);
+      setSelectedHours(h);
+      setSelectedMinutes(m);
+      setStartDate(task.startDate || '');
       setDueDate(task.dueDate || '');
       setNotes(task.notes || '');
-      setNextImmediateStep(task.nextImmediateStep || '');
       setSubtasks(task.subtasks || []);
     } else {
       setTitle('');
@@ -67,10 +106,11 @@ export const TaskModal: React.FC<TaskModalProps> = ({
       setStatus('todo');
       setPriority('p2_high');
       setQuadrant('q2_schedule');
-      setEstimatedDuration('');
+      setSelectedHours(0);
+      setSelectedMinutes(30);
+      setStartDate('');
       setDueDate('');
       setNotes('');
-      setNextImmediateStep('');
       setSubtasks([]);
     }
   }, [task, isOpen, categories]);
@@ -100,9 +140,21 @@ export const TaskModal: React.FC<TaskModalProps> = ({
     setSubtasks(subtasks.filter((st) => st.id !== id));
   };
 
+  const calculateDateSpan = () => {
+    if (!startDate || !dueDate) return null;
+    const start = new Date(startDate);
+    const end = new Date(dueDate);
+    const diffTime = end.getTime() - start.getTime();
+    if (isNaN(diffTime) || diffTime < 0) return null;
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+    return diffDays === 1 ? '1 day' : `${diffDays} days`;
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim()) return;
+
+    const formattedDuration = formatDurationString(selectedHours, selectedMinutes);
 
     const updatedTask: Task = {
       id: task?.id || `task-${Date.now()}`,
@@ -111,10 +163,10 @@ export const TaskModal: React.FC<TaskModalProps> = ({
       status,
       priority,
       quadrant,
-      estimatedDuration: estimatedDuration.trim() || undefined,
+      startDate: startDate || undefined,
       dueDate: dueDate || undefined,
+      estimatedDuration: formattedDuration || undefined,
       notes: notes.trim() || undefined,
-      nextImmediateStep: nextImmediateStep.trim() || undefined,
       subtasks,
       tags: task?.tags || [category],
       createdAt: task?.createdAt || new Date().toISOString(),
@@ -238,62 +290,146 @@ export const TaskModal: React.FC<TaskModalProps> = ({
             </div>
           </div>
 
-          {/* Due Date & Estimated Duration */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5 mb-1">
-                <Calendar className="w-3.5 h-3.5 text-slate-500" />
-                <span>{lang === 'es' ? 'Fecha Límite (Opcional)' : 'Due Date (Optional)'}</span>
+          {/* iOS Clock-Style Estimated Duration Picker */}
+          <div className="bg-slate-50/80 dark:bg-slate-800/60 rounded-xl p-3 sm:p-4 border border-slate-200 dark:border-slate-700/80 space-y-2.5">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                <Clock className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
+                <span>{lang === 'es' ? 'Duración Estimada (Reloj iOS)' : 'Estimated Duration (iOS Clock Style)'}</span>
               </label>
-              <input
-                type="date"
-                value={dueDate}
-                onChange={(e) => setDueDate(e.target.value)}
-                className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white focus:outline-none"
-              />
+              <span className="font-mono text-xs font-bold px-2 py-0.5 rounded-md bg-indigo-50 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">
+                {formatDurationString(selectedHours, selectedMinutes) || (lang === 'es' ? '0 min' : '0 min')}
+              </span>
             </div>
 
-            <div>
-              <label className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5 mb-1">
-                <Clock className="w-3.5 h-3.5 text-slate-500" />
-                <span>{t.estimatedDurationLabel}</span>
-              </label>
-              <input
-                type="text"
-                value={estimatedDuration}
-                onChange={(e) => setEstimatedDuration(e.target.value)}
-                placeholder={t.durationPlaceholder}
-                className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white focus:outline-none"
-              />
+            {/* Quick preset buttons */}
+            <div className="flex items-center gap-1.5 flex-wrap">
+              {DURATION_PRESETS.map((p) => {
+                const isActive = selectedHours === p.h && selectedMinutes === p.m;
+                return (
+                  <button
+                    key={p.label}
+                    type="button"
+                    onClick={() => {
+                      setSelectedHours(p.h);
+                      setSelectedMinutes(p.m);
+                    }}
+                    className={`px-2.5 py-1 text-xs font-medium rounded-lg border transition-colors cursor-pointer ${
+                      isActive
+                        ? 'bg-indigo-600 text-white border-indigo-600 shadow-2xs font-semibold'
+                        : 'bg-white dark:bg-slate-700 border-slate-200 dark:border-slate-600 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-600'
+                    }`}
+                  >
+                    {p.label}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* iOS-Style Scroll Wheels for Hours & Minutes */}
+            <div className="grid grid-cols-2 gap-3 pt-1">
+              
+              {/* Hours Scroll Column */}
+              <div className="bg-white dark:bg-slate-900 rounded-xl p-2.5 border border-slate-200 dark:border-slate-700 text-center shadow-inner">
+                <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 block mb-1">
+                  {lang === 'es' ? 'Horas' : 'Hours'}
+                </span>
+                <div className="flex items-center justify-center gap-2">
+                  <select
+                    value={selectedHours}
+                    onChange={(e) => setSelectedHours(parseInt(e.target.value, 10))}
+                    className="w-full py-1.5 px-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-center font-mono font-bold text-sm text-slate-900 dark:text-white cursor-pointer focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                  >
+                    {HOURS_LIST.map((h) => (
+                      <option key={h} value={h}>
+                        {h} {h === 1 ? (lang === 'es' ? 'hora' : 'hour') : (lang === 'es' ? 'horas' : 'hours')}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Minutes Scroll Column */}
+              <div className="bg-white dark:bg-slate-900 rounded-xl p-2.5 border border-slate-200 dark:border-slate-700 text-center shadow-inner">
+                <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 block mb-1">
+                  {lang === 'es' ? 'Minutos' : 'Minutes'}
+                </span>
+                <div className="flex items-center justify-center gap-2">
+                  <select
+                    value={selectedMinutes}
+                    onChange={(e) => setSelectedMinutes(parseInt(e.target.value, 10))}
+                    className="w-full py-1.5 px-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-center font-mono font-bold text-sm text-slate-900 dark:text-white cursor-pointer focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                  >
+                    {MINUTES_LIST.map((m) => (
+                      <option key={m} value={m}>
+                        {m < 10 ? `0${m}` : m} {lang === 'es' ? 'min' : 'min'}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
             </div>
           </div>
 
-          {/* First 60-Second Next Action */}
-          <div>
-            <label className="text-xs font-bold text-indigo-900 dark:text-indigo-300 flex items-center gap-1.5 mb-1">
-              <Sparkles className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
-              <span>{t.first60SecLabel}</span>
-            </label>
-            <input
-              type="text"
-              value={nextImmediateStep}
-              onChange={(e) => setNextImmediateStep(e.target.value)}
-              placeholder={t.first60SecPlaceholder}
-              className="w-full px-3 py-2 text-xs bg-indigo-50/50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800/80 rounded-xl focus:outline-none font-medium text-indigo-900 dark:text-indigo-200 placeholder-indigo-300 dark:placeholder-indigo-600"
-            />
+          {/* Date Duration Range (Start Date & Due Date) */}
+          <div className="bg-slate-50/80 dark:bg-slate-800/60 rounded-xl p-3 sm:p-4 border border-slate-200 dark:border-slate-700/80 space-y-2.5">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                <Calendar className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
+                <span>{lang === 'es' ? 'Fechas y Duración de Calendario' : 'Dates & Calendar Duration'}</span>
+              </label>
+              {calculateDateSpan() && (
+                <span className="font-mono text-xs font-semibold px-2 py-0.5 rounded-md bg-emerald-50 dark:bg-emerald-950/70 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                  {calculateDateSpan()}
+                </span>
+              )}
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="text-[11px] font-semibold text-slate-600 dark:text-slate-400 block mb-1">
+                  {lang === 'es' ? 'Fecha de Inicio (Opcional)' : 'Start Date (Optional)'}
+                </label>
+                <input
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                  className="w-full px-3 py-1.5 text-xs bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                />
+              </div>
+
+              <div>
+                <label className="text-[11px] font-semibold text-slate-600 dark:text-slate-400 block mb-1">
+                  {lang === 'es' ? 'Fecha Límite / Entrega' : 'Due / End Date'}
+                </label>
+                <input
+                  type="date"
+                  value={dueDate}
+                  onChange={(e) => setDueDate(e.target.value)}
+                  className="w-full px-3 py-1.5 text-xs bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                />
+              </div>
+            </div>
           </div>
 
-          {/* Notes */}
+          {/* Context Notes & Requirements */}
           <div>
-            <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1">
-              {t.notesLabel}
-            </label>
+            <div className="flex items-center justify-between mb-1">
+              <label className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1">
+                <FileText className="w-3.5 h-3.5 text-slate-500" />
+                <span>{t.notesLabel}</span>
+              </label>
+              <span className="text-[11px] text-slate-400">
+                {lang === 'es' ? 'Se mostrará debajo del título' : 'Shows directly under title'}
+              </span>
+            </div>
             <textarea
-              rows={2}
+              rows={3}
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               placeholder={t.notesPlaceholder}
-              className="w-full p-2.5 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none"
+              className="w-full p-2.5 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-indigo-500"
             />
           </div>
 

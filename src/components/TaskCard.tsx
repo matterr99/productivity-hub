@@ -4,7 +4,8 @@ import {
   Circle, 
   Clock, 
   ListChecks,
-  Calendar
+  Calendar,
+  FileText
 } from 'lucide-react';
 import { Task, EisenhowerQuadrant, Language } from '../types/task';
 import { PRIORITY_CONFIG } from '../utils/priorityCalculations';
@@ -57,10 +58,12 @@ export const TaskCard: React.FC<TaskCardProps> = ({
             </span>
           </div>
 
-          {task.dueDate && (
+          {(task.dueDate || task.startDate) && (
             <span className="inline-flex items-center gap-1 text-[11px] text-slate-500 dark:text-slate-400 font-mono">
               <Calendar className="w-3 h-3 text-slate-400" />
-              <span>{task.dueDate}</span>
+              <span>
+                {task.startDate && task.dueDate ? `${task.startDate} → ${task.dueDate}` : (task.dueDate || task.startDate)}
+              </span>
             </span>
           )}
         </div>
@@ -90,25 +93,17 @@ export const TaskCard: React.FC<TaskCardProps> = ({
               {task.title}
             </h4>
 
+            {/* Context Notes & Requirements shown directly under task title */}
             {task.notes && (
-              <p className="mt-1 text-xs text-slate-500 dark:text-slate-400 line-clamp-2 leading-relaxed">
+              <p className="mt-1 text-xs text-slate-600 dark:text-slate-300 line-clamp-2 leading-relaxed bg-slate-50 dark:bg-slate-800/60 p-1.5 rounded-md border border-slate-100 dark:border-slate-700/50">
                 {task.notes}
               </p>
-            )}
-
-            {task.nextImmediateStep && !isDone && (
-              <div className="mt-2 text-xs text-indigo-900 dark:text-indigo-200 bg-indigo-50/70 dark:bg-indigo-950/50 rounded-md px-2.5 py-1.5 border border-indigo-100/80 dark:border-indigo-800/60 flex items-start gap-1.5">
-                <span className="font-semibold text-indigo-700 dark:text-indigo-300 shrink-0">
-                  {lang === 'es' ? 'Siguiente:' : 'Next:'}
-                </span>
-                <span className="line-clamp-1">{task.nextImmediateStep}</span>
-              </div>
             )}
           </div>
         </div>
 
         {/* Footer info: Duration, Subtasks, Quadrant Shift */}
-        <div className="mt-3 pt-2.5 border-t border-slate-100 dark:border-slate-700/60 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
+        <div className="mt-3 pt-2.5 border-t border-slate-100 dark:border-slate-700/60 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 gap-2">
           <div className="flex items-center gap-2.5 flex-wrap">
             {totalSubtasks > 0 && (
               <span className="inline-flex items-center gap-1 font-mono tabular-nums text-slate-600 dark:text-slate-300">
@@ -118,7 +113,7 @@ export const TaskCard: React.FC<TaskCardProps> = ({
             )}
 
             {task.estimatedDuration && (
-              <span className="inline-flex items-center gap-1 text-slate-500 dark:text-slate-400">
+              <span className="inline-flex items-center gap-1 text-slate-500 dark:text-slate-400 font-mono text-[11px]">
                 <Clock className="w-3 h-3 text-slate-400 dark:text-slate-500" />
                 <span>{task.estimatedDuration}</span>
               </span>
@@ -145,4 +140,3 @@ export const TaskCard: React.FC<TaskCardProps> = ({
     </div>
   );
 };
-

@@ -8,7 +8,7 @@ import {
   Edit2,
   FolderTree
 } from 'lucide-react';
-import { Task, CategoryInfo, EisenhowerQuadrant, Language } from '../types/task';
+import { Task, TaskPriority, CategoryInfo, EisenhowerQuadrant, Language } from '../types/task';
 import { TaskCard } from './TaskCard';
 import { getTranslation } from '../i18n/translations';
 
@@ -82,7 +82,24 @@ export const ProjectsHubView: React.FC<ProjectsHubViewProps> = ({
       {/* Category Workspaces Cards */}
       <div className="space-y-4">
         {categories.map((cat) => {
-          const catTasks = tasks.filter((taskItem) => taskItem.category === cat.id);
+          const rawCatTasks = tasks.filter((taskItem) => taskItem.category === cat.id);
+          
+          // Sort tasks: Incomplete first, then by priority
+          const catTasks = [...rawCatTasks].sort((a, b) => {
+            const aDone = a.status === 'done';
+            const bDone = b.status === 'done';
+            if (aDone !== bDone) {
+              return aDone ? 1 : -1;
+            }
+            const orderMap: Record<TaskPriority, number> = {
+              p1_critical: 4,
+              p2_high: 3,
+              p3_medium: 2,
+              p4_low: 1,
+            };
+            return (orderMap[b.priority] || 0) - (orderMap[a.priority] || 0);
+          });
+
           const completedCount = catTasks.filter((taskItem) => taskItem.status === 'done').length;
           const criticalCount = catTasks.filter((taskItem) => taskItem.status !== 'done' && taskItem.priority === 'p1_critical').length;
           const progress = catTasks.length > 0 ? Math.round((completedCount / catTasks.length) * 100) : 0;

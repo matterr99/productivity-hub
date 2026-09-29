@@ -22,13 +22,13 @@ export interface Task {
   status: TaskStatus;
   priority: TaskPriority;
   quadrant: EisenhowerQuadrant;
+  startDate?: string;
   dueDate?: string;
   estimatedDuration?: string;
   notes?: string;
   subtasks: Subtask[];
   tags: string[];
   rationale?: string;
-  nextImmediateStep?: string;
   createdAt: string;
   updatedAt: string;
   completedAt?: string;

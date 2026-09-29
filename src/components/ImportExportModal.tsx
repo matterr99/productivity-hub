@@ -148,10 +148,10 @@ export const ImportExportModal: React.FC<ImportExportModalProps> = ({
               status: item.status === 'done' ? 'done' : (item.status || 'todo'),
               priority: item.priority || 'p2_high',
               quadrant: item.quadrant || 'q2_schedule',
+              startDate: item.startDate || undefined,
               dueDate: item.dueDate || undefined,
               estimatedDuration: item.estimatedDuration || undefined,
-              notes: item.notes || undefined,
-              nextImmediateStep: item.nextImmediateStep || undefined,
+              notes: item.notes || item.nextImmediateStep || undefined,
               subtasks: Array.isArray(item.subtasks) ? item.subtasks : [],
               tags: Array.isArray(item.tags) ? item.tags : [item.category || defaultCategory],
               createdAt: item.createdAt || new Date().toISOString(),
@@ -286,7 +286,7 @@ export const ImportExportModal: React.FC<ImportExportModalProps> = ({
   };
 
   const handleExportCSV = () => {
-    const headers = ['ID', 'Title', 'Category', 'Status', 'Priority', 'Quadrant', 'Due Date', 'Estimated Duration', 'Next Action', 'Notes'];
+    const headers = ['ID', 'Title', 'Category', 'Status', 'Priority', 'Quadrant', 'Start Date', 'Due Date', 'Estimated Duration', 'Notes'];
     const rows = tasks.map((tItem) => [
       `"${tItem.id}"`,
       `"${(tItem.title || '').replace(/"/g, '""')}"`,
@@ -294,9 +294,9 @@ export const ImportExportModal: React.FC<ImportExportModalProps> = ({
       `"${tItem.status}"`,
       `"${tItem.priority}"`,
       `"${tItem.quadrant}"`,
+      `"${tItem.startDate || ''}"`,
       `"${tItem.dueDate || ''}"`,
       `"${(tItem.estimatedDuration || '').replace(/"/g, '""')}"`,
-      `"${(tItem.nextImmediateStep || '').replace(/"/g, '""')}"`,
       `"${(tItem.notes || '').replace(/"/g, '""')}"`,
     ]);
 
