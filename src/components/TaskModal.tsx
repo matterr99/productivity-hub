@@ -141,13 +141,50 @@ export const TaskModal: React.FC<TaskModalProps> = ({
   };
 
   const calculateDateSpan = () => {
-    if (!startDate || !dueDate) return null;
-    const start = new Date(startDate);
-    const end = new Date(dueDate);
-    const diffTime = end.getTime() - start.getTime();
-    if (isNaN(diffTime) || diffTime < 0) return null;
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
-    return diffDays === 1 ? '1 day' : `${diffDays} days`;
+    if (!startDate && !dueDate) return null;
+    if (startDate && dueDate) {
+      const start = new Date(startDate);
+      const end = new Date(dueDate);
+      const diffTime = end.getTime() - start.getTime();
+      if (isNaN(diffTime)) return null;
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+      if (diffDays <= 0) return lang === 'es' ? '1 día' : '1 day';
+      return diffDays === 1 
+        ? (lang === 'es' ? '1 día' : '1 day') 
+        : `${diffDays} ${lang === 'es' ? 'días' : 'days'}`;
+    }
+    if (dueDate) {
+      return lang === 'es' ? 'Fecha límite' : 'Due date';
+    }
+    return lang === 'es' ? 'Fecha inicio' : 'Start date';
+  };
+
+  const setQuickDate = (type: 'today' | 'tomorrow' | 'week' | 'clear') => {
+    if (type === 'clear') {
+      setStartDate('');
+      setDueDate('');
+      return;
+    }
+    const now = new Date();
+    const formatDate = (d: Date) => {
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    };
+
+    if (type === 'today') {
+      setDueDate(formatDate(now));
+    } else if (type === 'tomorrow') {
+      const tomorrow = new Date(now);
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      setDueDate(formatDate(tomorrow));
+    } else if (type === 'week') {
+      setStartDate(formatDate(now));
+      const nextWeek = new Date(now);
+      nextWeek.setDate(nextWeek.getDate() + 7);
+      setDueDate(formatDate(nextWeek));
+    }
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -179,8 +216,8 @@ export const TaskModal: React.FC<TaskModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/60 dark:bg-black/70 backdrop-blur-xs">
-      <div className="bg-white dark:bg-slate-900 rounded-2xl max-w-xl w-full max-h-[90vh] flex flex-col shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 md:p-6 bg-slate-900/60 dark:bg-black/70 backdrop-blur-xs">
+      <div className="bg-white dark:bg-slate-900 rounded-2xl max-w-2xl sm:max-w-3xl w-full max-h-[92vh] flex flex-col shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
         
         {/* Header */}
         <div className="p-4 sm:p-5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-900 dark:bg-slate-950 text-white">
@@ -195,7 +232,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
             </p>
           </div>
 
-          <button onClick={onClose} className="p-1 text-slate-400 hover:text-white rounded cursor-pointer">
+          <button onClick={onClose} className="p-1 text-slate-400 hover:text-white rounded cursor-pointer" aria-label="Close modal">
             <X className="w-5 h-5" />
           </button>
         </div>
@@ -205,7 +242,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
           
           {/* Title */}
           <div>
-            <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1">
+            <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1.5">
               {t.titleLabel}
             </label>
             <input
@@ -215,20 +252,20 @@ export const TaskModal: React.FC<TaskModalProps> = ({
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder={t.titlePlaceholder}
-              className="w-full px-3 py-2 text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white dark:focus:bg-slate-800 font-medium"
+              className="w-full h-10 px-3 py-2 text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white dark:focus:bg-slate-800 font-medium"
             />
           </div>
 
           {/* Category & Status */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1">
+              <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1.5">
                 {t.categoryLabel}
               </label>
               <select
                 value={category}
                 onChange={(e) => setCategory(e.target.value)}
-                className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none font-medium text-slate-800 dark:text-slate-200 cursor-pointer"
+                className="w-full h-10 px-3 py-2 text-xs sm:text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium text-slate-800 dark:text-slate-200 cursor-pointer"
               >
                 {categories.map((c) => (
                   <option key={c.id} value={c.id} className="dark:bg-slate-800 dark:text-slate-200">
@@ -239,13 +276,13 @@ export const TaskModal: React.FC<TaskModalProps> = ({
             </div>
 
             <div>
-              <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1">
+              <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1.5">
                 {t.statusLabel}
               </label>
               <select
                 value={status}
                 onChange={(e) => setStatus(e.target.value as TaskStatus)}
-                className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none font-medium text-slate-800 dark:text-slate-200 cursor-pointer"
+                className="w-full h-10 px-3 py-2 text-xs sm:text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium text-slate-800 dark:text-slate-200 cursor-pointer"
               >
                 <option value="todo" className="dark:bg-slate-800 dark:text-slate-200">{t.todo}</option>
                 <option value="in_progress" className="dark:bg-slate-800 dark:text-slate-200">{t.inProgress}</option>
@@ -258,13 +295,13 @@ export const TaskModal: React.FC<TaskModalProps> = ({
           {/* Eisenhower Quadrant & Priority */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1">
+              <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1.5">
                 {t.quadrantLabel}
               </label>
               <select
                 value={quadrant}
                 onChange={(e) => setQuadrant(e.target.value as EisenhowerQuadrant)}
-                className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none font-semibold text-slate-800 dark:text-slate-200 cursor-pointer"
+                className="w-full h-10 px-3 py-2 text-xs sm:text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 font-semibold text-slate-800 dark:text-slate-200 cursor-pointer"
               >
                 <option value="q1_do" className="dark:bg-slate-800 dark:text-slate-200">{tQuadrants.q1_do} ({lang === 'es' ? 'Urgente e Importante' : 'Urgent & Important'})</option>
                 <option value="q2_schedule" className="dark:bg-slate-800 dark:text-slate-200">{tQuadrants.q2_schedule} ({lang === 'es' ? 'No urgente pero Importante' : 'Important & Not Urgent'})</option>
@@ -274,13 +311,13 @@ export const TaskModal: React.FC<TaskModalProps> = ({
             </div>
 
             <div>
-              <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1">
+              <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1.5">
                 {t.priorityTierLabel}
               </label>
               <select
                 value={priority}
                 onChange={(e) => setPriority(e.target.value as TaskPriority)}
-                className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none font-semibold text-slate-800 dark:text-slate-200 cursor-pointer"
+                className="w-full h-10 px-3 py-2 text-xs sm:text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 font-semibold text-slate-800 dark:text-slate-200 cursor-pointer"
               >
                 <option value="p1_critical" className="dark:bg-slate-800 dark:text-slate-200">{tPriorities.p1_critical}</option>
                 <option value="p2_high" className="dark:bg-slate-800 dark:text-slate-200">{tPriorities.p2_high}</option>
@@ -290,8 +327,8 @@ export const TaskModal: React.FC<TaskModalProps> = ({
             </div>
           </div>
 
-          {/* iOS Clock-Style Estimated Duration Picker */}
-          <div className="bg-slate-50/80 dark:bg-slate-800/60 rounded-xl p-3 sm:p-4 border border-slate-200 dark:border-slate-700/80 space-y-2.5">
+          {/* Estimated Duration Module (iOS Clock Style) */}
+          <div className="bg-slate-50/80 dark:bg-slate-800/60 rounded-xl p-3 sm:p-3.5 border border-slate-200 dark:border-slate-700/80 space-y-2.5">
             <div className="flex items-center justify-between">
               <label className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
                 <Clock className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
@@ -314,7 +351,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                       setSelectedHours(p.h);
                       setSelectedMinutes(p.m);
                     }}
-                    className={`px-2.5 py-1 text-xs font-medium rounded-lg border transition-colors cursor-pointer ${
+                    className={`px-2 py-0.5 text-xs font-medium rounded-md border transition-colors cursor-pointer ${
                       isActive
                         ? 'bg-indigo-600 text-white border-indigo-600 shadow-2xs font-semibold'
                         : 'bg-white dark:bg-slate-700 border-slate-200 dark:border-slate-600 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-600'
@@ -326,88 +363,115 @@ export const TaskModal: React.FC<TaskModalProps> = ({
               })}
             </div>
 
-            {/* iOS-Style Scroll Wheels for Hours & Minutes */}
-            <div className="grid grid-cols-2 gap-3 pt-1">
-              
-              {/* Hours Scroll Column */}
-              <div className="bg-white dark:bg-slate-900 rounded-xl p-2.5 border border-slate-200 dark:border-slate-700 text-center shadow-inner">
-                <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 block mb-1">
+            {/* Symmetrical Hours & Minutes Inputs with compact width */}
+            <div className="grid grid-cols-2 gap-4 sm:gap-6 pt-0.5 max-w-lg">
+              <div className="max-w-[220px] w-full">
+                <label className="text-[11px] font-semibold text-slate-600 dark:text-slate-400 block mb-1">
                   {lang === 'es' ? 'Horas' : 'Hours'}
-                </span>
-                <div className="flex items-center justify-center gap-2">
-                  <select
-                    value={selectedHours}
-                    onChange={(e) => setSelectedHours(parseInt(e.target.value, 10))}
-                    className="w-full py-1.5 px-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-center font-mono font-bold text-sm text-slate-900 dark:text-white cursor-pointer focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                  >
-                    {HOURS_LIST.map((h) => (
-                      <option key={h} value={h}>
-                        {h} {h === 1 ? (lang === 'es' ? 'hora' : 'hour') : (lang === 'es' ? 'horas' : 'hours')}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                </label>
+                <select
+                  value={selectedHours}
+                  onChange={(e) => setSelectedHours(parseInt(e.target.value, 10))}
+                  className="w-full h-8.5 px-2.5 py-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-center font-mono font-bold text-xs text-slate-900 dark:text-white cursor-pointer focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-2xs"
+                >
+                  {HOURS_LIST.map((h) => (
+                    <option key={h} value={h}>
+                      {h} {h === 1 ? (lang === 'es' ? 'hora' : 'hour') : (lang === 'es' ? 'horas' : 'hours')}
+                    </option>
+                  ))}
+                </select>
               </div>
 
-              {/* Minutes Scroll Column */}
-              <div className="bg-white dark:bg-slate-900 rounded-xl p-2.5 border border-slate-200 dark:border-slate-700 text-center shadow-inner">
-                <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 block mb-1">
+              <div className="max-w-[220px] w-full">
+                <label className="text-[11px] font-semibold text-slate-600 dark:text-slate-400 block mb-1">
                   {lang === 'es' ? 'Minutos' : 'Minutes'}
-                </span>
-                <div className="flex items-center justify-center gap-2">
-                  <select
-                    value={selectedMinutes}
-                    onChange={(e) => setSelectedMinutes(parseInt(e.target.value, 10))}
-                    className="w-full py-1.5 px-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-center font-mono font-bold text-sm text-slate-900 dark:text-white cursor-pointer focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                  >
-                    {MINUTES_LIST.map((m) => (
-                      <option key={m} value={m}>
-                        {m < 10 ? `0${m}` : m} {lang === 'es' ? 'min' : 'min'}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                </label>
+                <select
+                  value={selectedMinutes}
+                  onChange={(e) => setSelectedMinutes(parseInt(e.target.value, 10))}
+                  className="w-full h-8.5 px-2.5 py-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-center font-mono font-bold text-xs text-slate-900 dark:text-white cursor-pointer focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-2xs"
+                >
+                  {MINUTES_LIST.map((m) => (
+                    <option key={m} value={m}>
+                      {m < 10 ? `0${m}` : m} {lang === 'es' ? 'min' : 'min'}
+                    </option>
+                  ))}
+                </select>
               </div>
-
             </div>
           </div>
 
-          {/* Date Duration Range (Start Date & Due Date) */}
-          <div className="bg-slate-50/80 dark:bg-slate-800/60 rounded-xl p-3 sm:p-4 border border-slate-200 dark:border-slate-700/80 space-y-2.5">
+          {/* Dates & Calendar Duration Module */}
+          <div className="bg-slate-50/80 dark:bg-slate-800/60 rounded-xl p-3 sm:p-3.5 border border-slate-200 dark:border-slate-700/80 space-y-2.5">
             <div className="flex items-center justify-between">
               <label className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
                 <Calendar className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
                 <span>{lang === 'es' ? 'Fechas y Duración de Calendario' : 'Dates & Calendar Duration'}</span>
               </label>
               {calculateDateSpan() && (
-                <span className="font-mono text-xs font-semibold px-2 py-0.5 rounded-md bg-emerald-50 dark:bg-emerald-950/70 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                <span className="font-mono text-xs font-bold px-2 py-0.5 rounded-md bg-emerald-50 dark:bg-emerald-950/70 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
                   {calculateDateSpan()}
                 </span>
               )}
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <label className="text-[11px] font-semibold text-slate-600 dark:text-slate-400 block mb-1">
+            {/* Quick date shortcuts */}
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <button
+                type="button"
+                onClick={() => setQuickDate('today')}
+                className="px-2 py-0.5 text-xs font-medium rounded-md border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-600 transition-colors cursor-pointer"
+              >
+                {lang === 'es' ? 'Hoy' : 'Today'}
+              </button>
+              <button
+                type="button"
+                onClick={() => setQuickDate('tomorrow')}
+                className="px-2 py-0.5 text-xs font-medium rounded-md border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-600 transition-colors cursor-pointer"
+              >
+                {lang === 'es' ? 'Mañana' : 'Tomorrow'}
+              </button>
+              <button
+                type="button"
+                onClick={() => setQuickDate('week')}
+                className="px-2 py-0.5 text-xs font-medium rounded-md border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-600 transition-colors cursor-pointer"
+              >
+                {lang === 'es' ? '+7 Días' : '+7 Days'}
+              </button>
+              {(startDate || dueDate) && (
+                <button
+                  type="button"
+                  onClick={() => setQuickDate('clear')}
+                  className="px-2 py-0.5 text-xs font-medium text-slate-400 hover:text-red-600 dark:hover:text-red-400 transition-colors cursor-pointer ml-auto"
+                >
+                  {lang === 'es' ? 'Borrar fechas' : 'Clear dates'}
+                </button>
+              )}
+            </div>
+
+            {/* Clean 2-Column Date Inputs with compact, tailored width */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 pt-0.5 max-w-lg">
+              <div className="max-w-[220px] w-full">
+                <label className="text-[11px] font-semibold text-slate-600 dark:text-slate-400 block mb-1 truncate">
                   {lang === 'es' ? 'Fecha de Inicio (Opcional)' : 'Start Date (Optional)'}
                 </label>
                 <input
                   type="date"
                   value={startDate}
                   onChange={(e) => setStartDate(e.target.value)}
-                  className="w-full px-3 py-1.5 text-xs bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                  className="w-full h-8.5 px-2.5 py-1 text-xs bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer dark:[color-scheme:dark] shadow-2xs"
                 />
               </div>
 
-              <div>
-                <label className="text-[11px] font-semibold text-slate-600 dark:text-slate-400 block mb-1">
+              <div className="max-w-[220px] w-full">
+                <label className="text-[11px] font-semibold text-slate-600 dark:text-slate-400 block mb-1 truncate">
                   {lang === 'es' ? 'Fecha Límite / Entrega' : 'Due / End Date'}
                 </label>
                 <input
                   type="date"
                   value={dueDate}
                   onChange={(e) => setDueDate(e.target.value)}
-                  className="w-full px-3 py-1.5 text-xs bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                  className="w-full h-8.5 px-2.5 py-1 text-xs bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer dark:[color-scheme:dark] shadow-2xs"
                 />
               </div>
             </div>
@@ -415,7 +479,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
 
           {/* Context Notes & Requirements */}
           <div>
-            <div className="flex items-center justify-between mb-1">
+            <div className="flex items-center justify-between mb-1.5">
               <label className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1">
                 <FileText className="w-3.5 h-3.5 text-slate-500" />
                 <span>{t.notesLabel}</span>
@@ -429,13 +493,13 @@ export const TaskModal: React.FC<TaskModalProps> = ({
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               placeholder={t.notesPlaceholder}
-              className="w-full p-2.5 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              className="w-full p-3 text-xs sm:text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-normal leading-relaxed"
             />
           </div>
 
           {/* Subtasks Checklist */}
           <div>
-            <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-2 flex items-center gap-1.5">
+            <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1.5 flex items-center gap-1.5">
               <ListChecks className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
               <span>{t.checklistLabel} ({subtasks.length})</span>
             </label>
@@ -446,7 +510,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                 {subtasks.map((st) => (
                   <div
                     key={st.id}
-                    className="flex items-center justify-between p-2 rounded-lg bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-xs"
+                    className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-xs sm:text-sm"
                   >
                     <div
                       onClick={() => handleToggleSubtask(st.id)}
@@ -465,7 +529,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                     <button
                       type="button"
                       onClick={() => handleRemoveSubtask(st.id)}
-                      className="text-slate-400 hover:text-red-600 dark:hover:text-red-400 ml-2 cursor-pointer"
+                      className="text-slate-400 hover:text-red-600 dark:hover:text-red-400 ml-2 cursor-pointer p-1"
                     >
                       <X className="w-3.5 h-3.5" />
                     </button>
@@ -481,12 +545,12 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                 value={newSubtaskTitle}
                 onChange={(e) => setNewSubtaskTitle(e.target.value)}
                 placeholder={t.addSubtaskPlaceholder}
-                className="flex-1 px-3 py-1.5 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none"
+                className="flex-1 h-10 px-3 py-2 text-xs sm:text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
               />
               <button
                 type="button"
                 onClick={handleAddSubtask}
-                className="px-3 py-1.5 text-xs font-semibold bg-slate-800 dark:bg-slate-700 text-white hover:bg-slate-700 dark:hover:bg-slate-600 rounded-lg cursor-pointer shrink-0"
+                className="h-10 px-4 py-2 text-xs font-semibold bg-slate-800 dark:bg-slate-700 text-white hover:bg-slate-700 dark:hover:bg-slate-600 rounded-xl cursor-pointer shrink-0"
               >
                 {t.addStepBtn}
               </button>
@@ -522,7 +586,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
 
               <button
                 type="submit"
-                className="px-5 py-2 text-xs font-semibold bg-slate-900 dark:bg-indigo-600 hover:bg-slate-800 dark:hover:bg-indigo-500 text-white rounded-lg transition-colors flex items-center gap-1.5 shadow-sm cursor-pointer"
+                className="px-5 py-2.5 text-xs font-semibold bg-slate-900 dark:bg-indigo-600 hover:bg-slate-800 dark:hover:bg-indigo-500 text-white rounded-xl transition-colors flex items-center gap-1.5 shadow-sm cursor-pointer"
               >
                 <Check className="w-4 h-4" />
                 <span>{t.saveTaskBtn}</span>
